@@ -27,7 +27,7 @@ REVIEW_MODE  = env("REVIEW_MODE", "approve")
 REVIEW_HOURS = float(env("REVIEW_HOURS", "2"))
 
 GEMINI_MODELS = [m.strip() for m in env("GEMINI_MODELS",
-                 "gemini-2.5-flash,gemini-2.5-flash-lite,gemini-2.0-flash").split(",")]
+                 "gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite").split(",")]
 TRENDS_GEO   = env("TRENDS_GEO", "IN")
 NUM_SCENES   = int(env("NUM_SCENES", "7"))          # 7 scenes ~ 35-45 sec
 IMG_SEED     = int(env("IMG_SEED", "4242"))
