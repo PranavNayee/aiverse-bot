@@ -28,4 +28,4 @@ jobs:
           REVIEW_MODE: ${{ vars.REVIEW_MODE || 'approve' }}
           REVIEW_HOURS: ${{ vars.REVIEW_HOURS || '2' }}
           PYTHONPATH: cartoon-bot/src
-          FAL_API_KEY: ${{ secrets.FAL_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}

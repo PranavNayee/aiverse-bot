@@ -2,8 +2,8 @@ import datetime, os, shutil, sys, time, traceback
 import config as C, trends, story as S, storage, notify, instagram, insights
 from util import log
 
-# Use AI video pipeline if FAL_API_KEY is set, else fall back to image pipeline
-USE_AI_VIDEO = bool(os.environ.get("FAL_API_KEY"))
+# Use AI video pipeline if HF_TOKEN is set, else fall back to image pipeline
+USE_AI_VIDEO = bool(os.environ.get("HF_TOKEN"))
 
 def build_caption(st):
     tags = list(dict.fromkeys(st.get("hashtags", []) + C.CHANNEL_HASHTAGS))[:15]

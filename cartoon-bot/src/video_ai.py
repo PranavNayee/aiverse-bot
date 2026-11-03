@@ -1,120 +1,75 @@
-"""AI video clip generation via fal.ai (MiniMax H3 / Hailuo).
-Each scene becomes a real animated video clip instead of a zoomed still image."""
-import os, time, requests
+"""AI video clip generation via Hugging Face Inference API (free tier).
+Uses LTX-Video — open source, no billing required, just a free HF token."""
+import os, time, requests, base64
 from util import log
 
-FAL_KEY = lambda: os.environ.get("FAL_API_KEY", "")
-BASE = "https://queue.fal.run"
+HF_TOKEN = lambda: os.environ.get("HF_TOKEN", "")
 
-# Model priority: best quality first, cheaper fallback second
-MODELS = [
-    "fal-ai/minimax/hailuo-02/standard/text-to-video",   # Hailuo 02 standard
-    "fal-ai/minimax/video-01",                            # fallback
-]
-
-HEADERS = lambda: {"Authorization": f"Key {FAL_KEY()}", "Content-Type": "application/json"}
+# LTX-Video on HF Inference API — free with a HF account
+HF_API_URL = "https://api-inference.huggingface.co/models/Lightricks/LTX-Video"
 
 
-def _submit(model, payload):
-    r = requests.post(f"{BASE}/{model}", headers=HEADERS(), json=payload, timeout=60)
-    if r.status_code not in (200, 201, 202):
-        raise RuntimeError(f"fal submit error {r.status_code}: {r.text[:300]}")
-    return r.json()["request_id"]
-
-
-def _poll(model, request_id, timeout=600):
-    status_url = f"{BASE}/{model}/requests/{request_id}/status"
-    result_url = f"{BASE}/{model}/requests/{request_id}"
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        time.sleep(8)
-        r = requests.get(status_url, headers=HEADERS(), timeout=30)
-        if r.status_code != 200:
-            continue
-        data = r.json()
-        status = data.get("status", "")
-        log(f"  fal status: {status}")
-        if status in ("COMPLETED", "OK"):
-            # fetch actual result
-            r2 = requests.get(result_url, headers=HEADERS(), timeout=30)
-            result = r2.json()
-            # result shape: {"video": {"url": "..."}} or {"video_url": "..."}
-            url = (result.get("video") or {}).get("url") or result.get("video_url")
-            if url:
-                return url
-            raise RuntimeError(f"fal result has no video URL: {result}")
-        if status == "FAILED":
-            raise RuntimeError(f"fal job failed: {data}")
-    raise RuntimeError(f"fal job timed out after {timeout}s")
-
-
-def _download(url, out_path):
-    r = requests.get(url, timeout=300, stream=True)
-    r.raise_for_status()
-    with open(out_path, "wb") as f:
-        for chunk in r.iter_content(chunk_size=65536):
-            f.write(chunk)
+def _hf_headers():
+    return {"Authorization": f"Bearer {HF_TOKEN()}", "Content-Type": "application/json"}
 
 
 def build_video_prompt(scene, narration, hook=None, is_first=False):
     """Build a cinematic video prompt for the scene."""
-    # Style prefix for viral cartoon-style reels
-    style = ("Vibrant 2D cartoon animation style, bold colors, expressive characters, "
-             "Indian setting, comedic, smooth motion, vertical 9:16 frame. ")
+    style = ("vibrant 2D cartoon animation, bold bright colors, expressive characters, "
+             "Indian setting, comedic, smooth fluid motion, vertical 9:16 portrait frame, "
+             "high quality, detailed")
 
     char_desc = ""
     chars = scene.get("characters", [])
     if "chintu" in chars:
-        char_desc += "Chintu: short chubby Indian man, big black moustache, yellow kurta. "
+        char_desc += "short chubby Indian man with big black moustache in yellow kurta, "
     if "mintu" in chars:
-        char_desc += "Mintu: tall thin Indian man, round glasses, blue shirt. "
+        char_desc += "tall thin Indian man with round glasses in blue shirt, "
 
     scene_desc = scene.get("image_prompt", "")
-    action = f"Scene: {scene_desc}. "
+    hook_text = f'text overlay showing "{hook}" at start, ' if hook and is_first else ""
 
-    # Add narration as audio hint
-    audio = f'Audio: Hindi voiceover saying "{narration}". '
+    prompt = f"{style}, {char_desc}{scene_desc}, {hook_text}dynamic camera movement"
+    return prompt[:500]
 
-    # Hook for first scene
-    hook_text = f'Show on screen: "{hook}" at the start. ' if hook and is_first else ""
 
-    # Camera movement hint for dynamism
-    camera = "Camera: gentle push-in or slow pan, dynamic and engaging. "
-
-    full = style + char_desc + action + camera + audio + hook_text
-    return full[:2000]  # fal has a 2000 char limit
+def _generate_hf(prompt, duration):
+    """Call HF Inference API for LTX-Video."""
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "num_frames": min(int(duration * 8), 80),   # LTX runs at ~8fps
+            "num_inference_steps": 30,
+            "guidance_scale": 3.0,
+            "height": 480,
+            "width": 272,   # 9:16 at 272x480
+        }
+    }
+    for attempt in range(4):
+        r = requests.post(HF_API_URL, headers=_hf_headers(), json=payload, timeout=300)
+        if r.status_code == 200:
+            return r.content   # raw video bytes
+        if r.status_code == 503:
+            # Model loading, wait and retry
+            wait = 30 * (attempt + 1)
+            log(f"  HF model loading, waiting {wait}s...")
+            time.sleep(wait)
+            continue
+        raise RuntimeError(f"HF API error {r.status_code}: {r.text[:200]}")
+    raise RuntimeError("HF model failed to load after 4 attempts")
 
 
 def make_video_clip(scene, narration, duration, out_path, hook=None, is_first=False, idx=0):
-    """Generate a real AI video clip for one scene. Returns out_path on success."""
-    if not FAL_KEY():
-        raise RuntimeError("FAL_API_KEY not set")
+    """Generate an AI video clip. Returns out_path on success."""
+    if not HF_TOKEN():
+        raise RuntimeError("HF_TOKEN not set")
 
     prompt = build_video_prompt(scene, narration, hook=hook, is_first=is_first)
-    # Clamp duration: fal supports 3-10s per clip
-    clip_dur = max(3, min(10, int(round(duration))))
+    log(f"  Generating AI video via HuggingFace LTX-Video...")
+    log(f"  Prompt: {prompt[:80]}...")
 
-    payload = {
-        "prompt": prompt,
-        "duration": clip_dur,
-        "resolution": "768P",
-        "aspect_ratio": "9:16",
-        "prompt_expansion_mode": "balanced",
-    }
-
-    last_err = None
-    for model in MODELS:
-        try:
-            log(f"  Submitting scene to fal.ai ({model})...")
-            request_id = _submit(model, payload)
-            log(f"  fal request_id: {request_id}")
-            video_url = _poll(model, request_id)
-            log(f"  fal video ready: {video_url[:80]}...")
-            _download(video_url, out_path)
-            log(f"  downloaded to {out_path}")
-            return out_path
-        except Exception as e:
-            last_err = e
-            log(f"  fal model {model} failed: {e}")
-
-    raise RuntimeError(f"All fal models failed: {last_err}")
+    video_bytes = _generate_hf(prompt, duration)
+    with open(out_path, "wb") as f:
+        f.write(video_bytes)
+    log(f"  AI video saved ({len(video_bytes)//1024} KB)")
+    return out_path
