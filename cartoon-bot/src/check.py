@@ -35,9 +35,10 @@ def c_font():
 
 def c_gemini():
     import story
-    r = story.gemini('Return only JSON: {"ok": true}', temperature=0)
+    r = story.generate('Return only JSON: {"ok": true}', temperature=0)
     if not r.get("ok"): raise RuntimeError(f"unexpected reply {r}")
-    return f"Gemini reachable (models: {', '.join(C.GEMINI_MODELS)})"
+    hf = "HuggingFace" if os.environ.get("HF_TOKEN") else "Gemini"
+    return f"{hf} LLM reachable"
 
 def c_trends():
     import trends
