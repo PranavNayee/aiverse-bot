@@ -15,19 +15,25 @@ def build_prompt(scene):
     return f"{C.STYLE}. {who}Scene: {scene['image_prompt']}. No text, no letters, no logos, no watermark."
 
 def _pollinations(prompt, seed):
-    url = (f"https://image.pollinations.ai/prompt/{quote(prompt)}"
-           f"?width=768&height=1344&model=flux&nologo=true&seed={seed}")
+    """Try Pollinations up to 6 times with growing delays and seed variation on failure."""
+    url_base = "https://image.pollinations.ai/prompt/"
     last = None
-    for attempt in range(4):
+    for attempt in range(6):
         try:
-            r = requests.get(url, timeout=180)
+            # Vary seed slightly on retries so we don't hit the same cached failure
+            s = seed + attempt * 7
+            url = (f"{url_base}{quote(prompt)}"
+                   f"?width=768&height=1344&model=flux&nologo=true&seed={s}")
+            r = requests.get(url, timeout=240)
             if r.status_code == 200 and _ext(r.content) and len(r.content) > 15000:
                 return r.content
             last = f"status {r.status_code}, {len(r.content)} bytes"
         except Exception as e:
             last = str(e)
-        time.sleep(8 * (attempt + 1))
-    raise RuntimeError(f"Pollinations failed: {last}")
+        wait = 15 * (attempt + 1)
+        log(f"  Pollinations attempt {attempt+1}/6 failed ({last}), retrying in {wait}s...")
+        time.sleep(wait)
+    raise RuntimeError(f"Pollinations failed after 6 attempts: {last}")
 
 def _cloudflare(prompt, seed):
     r = requests.post(
@@ -42,7 +48,8 @@ def _cloudflare(prompt, seed):
     return data
 
 def make_image(scene, out_base, seed=None):
-    """Tries Pollinations first, then Cloudflare Workers AI (if CF_API_TOKEN is set). Returns the saved file path."""
+    """Tries Pollinations first (with retries), then Cloudflare Workers AI (if CF_API_TOKEN is set).
+    Returns the saved file path."""
     seed = seed or C.IMG_SEED
     prompt = build_prompt(scene)
     providers = [("pollinations", _pollinations)]

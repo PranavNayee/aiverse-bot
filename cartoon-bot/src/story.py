@@ -45,7 +45,7 @@ def _clean_json(text):
     text = re.sub(r"```$", "", text).strip()
     return json.loads(text)
 
-@retry(tries=2, delay=8)
+@retry(tries=3, delay=20)
 def _gemini_once(model, prompt, temperature):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     r = requests.post(url, headers={"x-goog-api-key": C.GEMINI_API_KEY(), "Content-Type": "application/json"},
