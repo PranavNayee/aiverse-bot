@@ -1,3 +1,4 @@
 requests
 edge-tts
 Pillow
+fal-client

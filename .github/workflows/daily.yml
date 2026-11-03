@@ -6,7 +6,7 @@ on:
 jobs:
   make-reel:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,3 +28,4 @@ jobs:
           REVIEW_MODE: ${{ vars.REVIEW_MODE || 'approve' }}
           REVIEW_HOURS: ${{ vars.REVIEW_HOURS || '2' }}
           PYTHONPATH: cartoon-bot/src
+          FAL_API_KEY: ${{ secrets.FAL_API_KEY }}
