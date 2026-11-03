@@ -1,28 +1,23 @@
 name: Post approved reel
 on:
   schedule:
-    # Every 30 minutes from 08:30 to 21:00 IST (03:00–15:30 UTC)
-    - cron: "0,30 3-15 * * *"
+    - cron: "0,30 3-15 * * *"   # every 30 min, 08:30–21:00 IST
   workflow_dispatch:
     inputs:
       force_post:
         description: "Skip Telegram check and force-post the pending reel"
         type: boolean
         default: false
-
 jobs:
   post:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: cartoon-bot
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11", cache: pip }
-      - run: pip install -r requirements.txt
-      - run: python src/post_pending.py
+      - run: pip install -r cartoon-bot/requirements.txt
+      - run: python cartoon-bot/src/post_pending.py
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -35,3 +30,4 @@ jobs:
           REVIEW_MODE: ${{ vars.REVIEW_MODE || 'approve' }}
           REVIEW_HOURS: ${{ vars.REVIEW_HOURS || '2' }}
           FORCE_POST: ${{ inputs.force_post || 'false' }}
+          PYTHONPATH: cartoon-bot/src
