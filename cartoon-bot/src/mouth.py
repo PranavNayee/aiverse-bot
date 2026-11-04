@@ -2,6 +2,7 @@
 import base64, io, requests
 from PIL import Image
 import config as C
+import story as S
 from story import _clean_json
 from util import log
 
@@ -22,12 +23,12 @@ def detect(img_path, speaker):
                     {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(buf.getvalue()).decode()}},
                     {"text": PROMPT.format(who=C.CHARACTERS[speaker]["look"])}]}],
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0}}
-        for m in C.GEMINI_MODELS:
-            r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent",
+        for m in S.model_candidates():
+            r = requests.post(f"{S.GEMINI_URL}/models/{m}:generateContent",
                               headers={"x-goog-api-key": C.GEMINI_API_KEY(), "Content-Type": "application/json"},
                               json=body, timeout=90)
             if r.status_code == 200:
-                j = _clean_json(r.json()["candidates"][0]["content"]["parts"][0]["text"])
+                j = _clean_json(S.extract_text(r.json()))
                 if j.get("found") and 0.05 <= j["x"] <= 0.95 and 0.05 <= j["y"] <= 0.95 and 0.04 <= j["w"] <= 0.5:
                     return {"x": float(j["x"]), "y": float(j["y"]), "w": float(j["w"])}
                 return None

@@ -39,7 +39,7 @@ def c_gemini():
     import story
     r = story.gemini('Return only JSON: {"ok": true}', temperature=0)
     if not r.get("ok"): raise RuntimeError(f"unexpected reply {r}")
-    return f"Gemini reachable (models: {', '.join(C.GEMINI_MODELS)})"
+    return f"Gemini reachable (using {story.LAST_MODEL}; candidates: {', '.join(story.model_candidates())})"
 
 def c_trends():
     import trends

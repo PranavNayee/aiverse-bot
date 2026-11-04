@@ -1,4 +1,4 @@
-import json, re, requests
+import json, re, time, requests
 import config as C, safety
 from util import log, retry
 
@@ -55,23 +55,76 @@ def _clean_json(text):
     text = re.sub(r"```$", "", text).strip()
     return json.loads(text)
 
-@retry(tries=2, delay=8)
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta"
+LAST_MODEL = ""
+_cands = None
+
+def _rank(names):
+    """Newest Flash models first (stable before preview, full Flash before Flash-Lite). Pure function, easy to test."""
+    good = []
+    for n in names:
+        m = re.match(r"^gemini-(\d+(?:\.\d+)?)-flash(-lite)?(-preview[\w.-]*|-\d+)?$", n)
+        if m:
+            good.append((-float(m.group(1)), bool(m.group(3)) and "preview" in m.group(3), bool(m.group(2)), n))
+    return [g[3] for g in sorted(good)]
+
+def model_candidates():
+    """Models to try, best first. Uses GEMINI_MODELS if you set it, else asks Google what exists today."""
+    global _cands
+    if C.GEMINI_MODELS:
+        return C.GEMINI_MODELS
+    if _cands:
+        return _cands
+    names, token = [], None
+    try:
+        for _ in range(3):
+            r = requests.get(f"{GEMINI_URL}/models", headers={"x-goog-api-key": C.GEMINI_API_KEY()},
+                             params={"pageSize": 200, **({"pageToken": token} if token else {})}, timeout=30)
+            if r.status_code != 200:
+                break
+            j = r.json()
+            names += [m["name"].split("/")[-1] for m in j.get("models", [])
+                      if "generateContent" in m.get("supportedGenerationMethods", [])]
+            token = j.get("nextPageToken")
+            if not token:
+                break
+    except Exception as e:
+        log("Model discovery failed:", e)
+    ranked = _rank(names)[:5]
+    _cands = ranked or C.GEMINI_FALLBACK_MODELS
+    log("Gemini models to try:", _cands)
+    return _cands
+
+def extract_text(resp_json):
+    parts = resp_json["candidates"][0]["content"]["parts"]
+    return "".join(p.get("text", "") for p in parts if not p.get("thought"))
+
 def _gemini_once(model, prompt, temperature):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    r = requests.post(url, headers={"x-goog-api-key": C.GEMINI_API_KEY(), "Content-Type": "application/json"},
-                      json={"contents": [{"parts": [{"text": prompt}]}],
-                            "generationConfig": {"responseMimeType": "application/json", "temperature": temperature}},
-                      timeout=120)
-    if r.status_code != 200:
-        raise RuntimeError(f"Gemini {model} error {r.status_code}: {r.text[:200]}")
-    return _clean_json(r.json()["candidates"][0]["content"]["parts"][0]["text"])
+    """Returns parsed JSON. Retries only temporary problems (429 / 5xx); a retired model moves on immediately."""
+    last = None
+    for attempt in range(2):
+        r = requests.post(f"{GEMINI_URL}/models/{model}:generateContent",
+                          headers={"x-goog-api-key": C.GEMINI_API_KEY(), "Content-Type": "application/json"},
+                          json={"contents": [{"parts": [{"text": prompt}]}],
+                                "generationConfig": {"responseMimeType": "application/json", "temperature": temperature}},
+                          timeout=120)
+        if r.status_code == 200:
+            return _clean_json(extract_text(r.json()))
+        last = RuntimeError(f"Gemini {model} error {r.status_code}: {r.text[:200]}")
+        if r.status_code not in (429, 500, 502, 503, 504):
+            break
+        time.sleep(8)
+    raise last
 
 def gemini(prompt, temperature=1.0):
-    """Try each model in GEMINI_MODELS until one works."""
+    """Try each available model until one works."""
+    global LAST_MODEL
     last = None
-    for m in C.GEMINI_MODELS:
+    for m in model_candidates():
         try:
-            return _gemini_once(m, prompt, temperature)
+            out = _gemini_once(m, prompt, temperature)
+            LAST_MODEL = m
+            return out
         except Exception as e:
             last = e
             log(f"Model {m} failed, trying next: {e}")

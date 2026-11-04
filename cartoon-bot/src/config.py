@@ -24,8 +24,10 @@ REVIEW_MODE  = env("REVIEW_MODE", "approve")
 REVIEW_HOURS = float(env("REVIEW_HOURS", "2"))
 MOUTH_FX     = env("MOUTH_FX", "true").lower() == "true"     # talking-mouth effect (set false if it looks bad)
 
-GEMINI_MODELS = [m.strip() for m in env("GEMINI_MODELS",
-                 "gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite").split(",")]
+# Leave GEMINI_MODELS empty: the bot asks Google which Flash models exist today (names get retired often).
+# To force specific ones, set the variable GEMINI_MODELS="model-a,model-b".
+GEMINI_MODELS = [m.strip() for m in env("GEMINI_MODELS", "").split(",") if m.strip()]
+GEMINI_FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3-flash-preview"]
 DEPTH_MODELS = ["depth-anything/Depth-Anything-V2-Small-hf", "LiheYoung/depth-anything-small-hf",
                 "Intel/dpt-hybrid-midas"]
 TRENDS_GEO   = env("TRENDS_GEO", "IN")
