@@ -1,11 +1,22 @@
 import datetime, os, shutil, sys, time, traceback
 from concurrent.futures import ProcessPoolExecutor
 import config as C, trends, story as S, images, depth, mouth, voice, video, storage, notify, instagram, insights, motion3d
+import hashtags, captions
 from util import log
 
 def build_caption(st, ep):
-    tags = list(dict.fromkeys(st.get("hashtags", []) + C.CHANNEL_HASHTAGS))[:15]
-    return f"{C.SERIES_NAME} • Part {ep}\n{st['caption']}\n\n🤖 AI-generated cartoon\n\n{' '.join(tags)}"
+    """Build optimized caption with smart hashtags"""
+    # Generate smart hashtags based on topic
+    smart_tags = hashtags.smart_hashtags(st.get("topic", ""), max_tags=15)
+    
+    # Generate optimized caption
+    optimized_caption = captions.generate_optimized_caption(st, st.get("hook", ""), ep)
+    
+    # Add hashtags
+    full_caption = captions.add_hashtags_to_caption(optimized_caption, smart_tags)
+    
+    log(f"Caption: {len(full_caption)} chars, {len(smart_tags)} hashtags")
+    return full_caption
 
 def run():
     t0 = time.time()

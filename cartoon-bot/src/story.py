@@ -32,13 +32,52 @@ RULES
    dramatic moments, shake for chaos, drift for dreamy, push for normal, dolly_zoom for shock/realization.
 8. "reaction": none, zoom or shake (use zoom/shake on the punchline).
 9. "sticker": one emoji to pop on screen for emphasis, or "".
-9. "hook": 3-6 word Hindi curiosity line shown at the start.
+10. "hook": Use viral hook templates to grab attention:
+    - Curiosity: "क्या आप जानते हैं...", "इसके बारे में कोई नहीं बताता..."
+    - Question: "अगर [topic] हो जाए तो?", "क्यों होता है [topic]?"
+    - Shock: "यह आपको चौंका देगा!", "आप यकीन नहीं करोगे..."
+    - Relatable: "हर किसी के साथ होता है...", "सच में ऐसा होता है!"
+    Make it 3-6 words, intriguing, related to topic.
 
 Return ONLY JSON:
 {{"topic": "...", "title": "...", "hook": "...", "caption": "Hindi caption, 1-2 lines, emojis ok",
  "hashtags": ["#..."],
  "scenes": [{{"speaker": "bablu|chiku|narrator", "narration": "...", "visual": "...", "with_sidekick": false,
               "camera": "push", "reaction": "none", "sticker": ""}}]}}"""
+
+# Viral hook templates for maximum engagement (used by AI as examples)
+VIRAL_HOOKS = {
+    "curiosity": [
+        "क्या आप जानते हैं {topic}?",
+        "इसके बारे में कोई नहीं बताता",
+        "यह राज़ छुपा है",
+        "इसका जवाब 99% नहीं जानते",
+    ],
+    "question": [
+        "अगर {topic} हो जाए तो?",
+        "क्यों होता है {topic}?",
+        "कैसे बचें {topic} से?",
+        "{topic} का सच क्या है?",
+    ],
+    "shock": [
+        "यह आपको चौंका देगा!",
+        "आप यकीन नहीं करोगे!",
+        "यह {topic} बदल देगा सब कुछ!",
+        "अभी तक नहीं बताया गया",
+    ],
+    "relatable": [
+        "हर किसी के साथ होता है",
+        "सच में ऐसा होता है!",
+        "आपके साथ भी होगा",
+        "यह बात समझो",
+    ],
+    "emotional": [
+        "यह दिल छू लेगा",
+        "आंसू रोक नहीं पाओगे",
+        "सच्ची कहानी है यह",
+        "बहुत खास है यह",
+    ],
+}
 
 REVIEW_PROMPT = """You are a strict brand-safety editor for a family-friendly Indian comedy channel.
 Reject the script if it contains or implies: politics or politicians, religion, caste or community jokes, violence,
