@@ -335,27 +335,37 @@ def create_comparison(left_text, right_text, left_title="Before", right_title="A
 
 def write_video(frames, output_path, duration):
     """Write frames to video file using ffmpeg"""
-    temp_frames = "work/temp_frames_%04d.png"
+    import os, glob
+    
+    # Create work directory if it doesn't exist
+    os.makedirs("work", exist_ok=True)
     
     # Save frames as images
     for i, frame in enumerate(frames):
-        cv2.imwrite(f"work/temp_frames_{i:04d}.png", frame)
+        frame_path = f"work/temp_frames_{i:04d}.png"
+        cv2.imwrite(frame_path, frame)
     
     # Use ffmpeg to create video
+    temp_pattern = "work/temp_frames_%04d.png"
     cmd = [
         "ffmpeg", "-y", "-framerate", str(FPS),
-        "-i", temp_frames,
+        "-i", temp_pattern,
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
         "-pix_fmt", "yuv420p", "-t", f"{duration:.2f}",
         output_path
     ]
     
-    subprocess.run(cmd, capture_output=True, check=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        log(f"FFmpeg error: {result.stderr[:500]}")
+        raise RuntimeError(f"FFmpeg failed: {result.stderr[:200]}")
     
     # Cleanup temp frames
-    import glob
     for f in glob.glob("work/temp_frames_*.png"):
-        os.remove(f)
+        try:
+            os.remove(f)
+        except:
+            pass
 
 if __name__ == "__main__":
     # Test animations
