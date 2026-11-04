@@ -1,5 +1,5 @@
 """Main lesson generation - coordinates syllabus, script, animations, voice"""
-import datetime, os, shutil, sys, time
+import datetime, os, shutil, sys, time, subprocess
 from util import log
 import config as C
 import syllabus, lesson_script, animations, voice, storage, notify, instagram
@@ -222,8 +222,6 @@ def generate_lesson_video(lesson, lesson_num, level, script):
 
 def run_lesson_generation():
     """Main entry point - generate and post lesson"""
-    import subprocess
-    
     t0 = time.time()
     history = storage.get_json("history.json", [])
     
@@ -236,6 +234,7 @@ def run_lesson_generation():
         content_type = "fun_fact"
         lesson_num = None
         level = "weekend"
+        lesson = {"title": topic}  # For video generation
     else:
         log("📚 Weekday - generating lesson")
         lesson, lesson_num, level = syllabus.get_next_lesson(history)
@@ -252,13 +251,9 @@ def run_lesson_generation():
         caption = build_lesson_caption(script, lesson_num, level)
         content_type = "lesson"
     
-    # Generate video (placeholder for now)
-    # In production, this would call generate_lesson_video()
-    log("TODO: Generate actual video with animations")
-    
-    # For now, create a simple placeholder
-    final_video = "work/final.mp4"
-    # (Would generate actual video here)
+    # Generate video with animations and voice
+    log("🎬 Starting video generation...")
+    final_video, duration = generate_lesson_video(lesson, lesson_num, level, script)
     
     # Upload to Supabase
     day = datetime.date.today().isoformat()
@@ -271,7 +266,8 @@ def run_lesson_generation():
         "type": content_type,
         "lesson_num": lesson_num,
         "level": level,
-        "topic": topic if is_weekend() else lesson.get("title"),
+        "topic": lesson.get("title", "Fun Fact"),
+        "duration": round(duration, 1)
     }
     
     # Post to Instagram
