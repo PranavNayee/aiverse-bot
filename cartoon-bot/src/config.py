@@ -46,12 +46,47 @@ SERIES_NAME = env("SERIES_NAME", "AI Seekho")
 CHANNEL_HASHTAGS = ["#aiseekho", "#hinglish", "#aiexplained", "#machinelearning", "#hindi", "#techeducation"]
 CTA_TEXT = "Roz naya lesson - Follow karo! 🔔"
 
-# Hinglish voice for education (Indian English for tech + Hindi mix)
+# Friendly Hinglish voices for education (warm, conversational tone)
+# Using Indian voices that read Hinglish naturally
 VOICES = {
-    "narrator": {"voice": "en-IN-PrabhatNeural", "rate": "+8%", "pitch": "-2Hz"},  # Indian English Male
-    "hinglish": {"voice": "en-IN-PrabhatNeural", "rate": "+10%", "pitch": "+5Hz"},  # Main teaching voice
-    "hindi": {"voice": "hi-IN-MadhurNeural", "rate": "+5%", "pitch": "-2Hz"},  # Pure Hindi segments
+    # Main teaching voice - friendly, warm, conversational
+    "hinglish": {
+        "voice": "en-IN-NeerjaNeural",  # Indian English Female - friendly, clear
+        "rate": "+5%",   # Slightly faster than normal (energetic but not rushed)
+        "pitch": "+8Hz"  # Warm, friendly pitch
+    },
+    
+    # Alternative male voice for variety
+    "hinglish_male": {
+        "voice": "en-IN-PrabhatNeural",  # Indian English Male - friendly, professional
+        "rate": "+6%",
+        "pitch": "+3Hz"  # Slightly higher for friendliness
+    },
+    
+    # Narrator for explanations (calm, clear)
+    "narrator": {
+        "voice": "en-IN-NeerjaNeural",  # Same voice, slightly slower for clarity
+        "rate": "+3%",
+        "pitch": "+5Hz"
+    },
+    
+    # For pure Hindi segments (warm female voice)
+    "hindi": {
+        "voice": "hi-IN-SwaraNeural",  # Hindi Female - warm, natural
+        "rate": "+5%",
+        "pitch": "+6Hz"
+    },
+    
+    # For pure Hindi male segments
+    "hindi_male": {
+        "voice": "hi-IN-MadhurNeural",  # Hindi Male - friendly
+        "rate": "+5%",
+        "pitch": "+3Hz"
+    },
 }
+
+# Default voice to use for lessons (friendliest option)
+DEFAULT_LESSON_VOICE = "hinglish"  # Uses en-IN-NeerjaNeural (friendly female)
 
 # Content type for determining what to generate
 CONTENT_MODE = env("CONTENT_MODE", "educational")  # "educational" or "entertainment"
