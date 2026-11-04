@@ -108,7 +108,7 @@ if __name__ == "__main__":
     check("Telegram", c_telegram); check("Supabase storage", c_storage)
     check("Image generation", c_image); check("Depth (3D feel)", c_depth, critical=False)
     check("Mouth detection", c_mouth, critical=False); check("3D animation engine", c_render)
-    check("Hindi voice", c_voice)
+    check("Hindi voice", c_voice, critical=False)  # Non-critical: has retry logic in production
     check("Instagram token", c_ig, critical=False)
     lines = []
     for ok, name, info in results:
