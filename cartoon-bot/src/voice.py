@@ -32,9 +32,13 @@ def duration(path):
 
 def generate_silence(output_path, duration_seconds):
     """Generate silent audio file of specified duration"""
+    # Use MP3 format for compatibility with other audio segments
     cmd = [
         "ffmpeg", "-y", "-f", "lavfi", "-i", f"anullsrc=r=44100:cl=stereo:d={duration_seconds}",
-        "-c:a", "aac", output_path
+        "-acodec", "libmp3lame", "-q:a", "2", output_path
     ]
-    subprocess.run(cmd, capture_output=True, check=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        log(f"FFmpeg silence error: {result.stderr}")
+        raise subprocess.CalledProcessError(result.returncode, cmd, result.stdout, result.stderr)
     log(f"Generated {duration_seconds}s silence: {output_path}")
