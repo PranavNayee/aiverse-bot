@@ -25,7 +25,7 @@ REVIEW_HOURS = float(env("REVIEW_HOURS", "2"))
 MOUTH_FX     = env("MOUTH_FX", "true").lower() == "true"     # talking-mouth effect (set false if it looks bad)
 
 GEMINI_MODELS = [m.strip() for m in env("GEMINI_MODELS",
-                 "gemini-2.5-flash,gemini-2.5-flash-lite,gemini-2.0-flash").split(",")]
+                 "gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite").split(",")]
 DEPTH_MODELS = ["depth-anything/Depth-Anything-V2-Small-hf", "LiheYoung/depth-anything-small-hf",
                 "Intel/dpt-hybrid-midas"]
 TRENDS_GEO   = env("TRENDS_GEO", "IN")
