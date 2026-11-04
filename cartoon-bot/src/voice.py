@@ -29,3 +29,12 @@ def duration(path):
     r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                         "-of", "default=nw=1:nk=1", path], capture_output=True, text=True, check=True)
     return float(r.stdout.strip())
+
+def generate_silence(output_path, duration_seconds):
+    """Generate silent audio file of specified duration"""
+    cmd = [
+        "ffmpeg", "-y", "-f", "lavfi", "-i", f"anullsrc=r=44100:cl=stereo:d={duration_seconds}",
+        "-c:a", "aac", output_path
+    ]
+    subprocess.run(cmd, capture_output=True, check=True)
+    log(f"Generated {duration_seconds}s silence: {output_path}")
