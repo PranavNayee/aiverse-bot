@@ -1,16 +1,13 @@
 name: Post approved reel
 on:
   schedule:
-    - cron: "*/30 3-15 * * *"   # checks Telegram for /post or /skip every 30 min (08:30-21:00 IST)
+    - cron: "0,30 3-15 * * *"
   workflow_dispatch:
     inputs:
       force_post:
-        description: "Post the pending reel right now (ignore Telegram)"
+        description: "Force-post the pending reel"
         type: boolean
         default: false
-concurrency:
-  group: cartoon-post
-  cancel-in-progress: false
 jobs:
   post:
     runs-on: ubuntu-latest
@@ -18,11 +15,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - run: pip install requests
-      - run: python src/post_pending.py
+        with: { python-version: "3.11", cache: pip }
+      - run: pip install -r cartoon-bot/requirements.txt
+      - run: python cartoon-bot/src/post_pending.py
         env:
-          FORCE_POST: ${{ inputs.force_post || 'false' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -31,8 +27,7 @@ jobs:
           SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           REVIEW_MODE: ${{ vars.REVIEW_MODE || 'approve' }}
           REVIEW_HOURS: ${{ vars.REVIEW_HOURS || '2' }}
-          MOUTH_FX: ${{ vars.MOUTH_FX || 'true' }}
+          FORCE_POST: ${{ inputs.force_post || 'false' }}
+          PYTHONPATH: cartoon-bot/src
