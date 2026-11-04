@@ -144,12 +144,13 @@ def create_intro(work_dir, duration=2.0):
     
     cmd = ["ffmpeg", "-y", "-f", "lavfi",
            "-i", f"color=c=#1a1a2e:s=1080x1920:d={duration}:r={FPS}",
+           "-f", "lavfi", "-i", f"anullsrc=r=44100:cl=stereo:d={duration}",
            "-vf", (f"drawtext=text='{intro_text}':"
                    f"fontfile=/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf:"
                    f"fontsize=90:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:"
                    f"enable='between(t,0.3,{duration})':"
                    f"alpha='if(lt(t,0.6),(t-0.3)/0.3,if(lt(t,{duration-0.4}),1,({duration}-t)/0.4))'"),
-           "-t", f"{duration}", "-pix_fmt", "yuv420p", intro_path]
+           "-t", f"{duration}", "-pix_fmt", "yuv420p", "-c:a", "aac", intro_path]
     try:
         run(cmd)
         return intro_path
@@ -170,12 +171,13 @@ def create_outro(work_dir, duration=2.5):
     
     cmd = ["ffmpeg", "-y", "-f", "lavfi",
            "-i", f"color=c=#1a1a2e:s=1080x1920:d={duration}:r={FPS}",
+           "-f", "lavfi", "-i", f"anullsrc=r=44100:cl=stereo:d={duration}",
            "-vf", (f"drawtext=text='🔔 {cta_text}':"
                    f"fontfile=/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf:"
                    f"fontsize=70:fontcolor=#FFE500:x=(w-text_w)/2:y=(h-text_h)/2:"
                    f"enable='between(t,0.2,{duration})':"
                    f"alpha='if(lt(t,0.5),(t-0.2)/0.3,if(lt(t,{duration-0.5}),1,({duration}-t)/0.5))'"),
-           "-t", f"{duration}", "-pix_fmt", "yuv420p", outro_path]
+           "-t", f"{duration}", "-pix_fmt", "yuv420p", "-c:a", "aac", outro_path]
     try:
         run(cmd)
         return outro_path
