@@ -65,37 +65,31 @@ def c_storage():
 
 _TEST = {}
 def c_image():
-    import images
-    p = images.make_image({"visual": "the monkey vlogger smiling and waving at the camera in a sunny park", "with_sidekick": False},
-                          os.path.join(tempfile.mkdtemp(), "t"))
-    _TEST["img"] = p
-    return f"3D-style image generated ({os.path.getsize(p)//1024} KB): {p}"
+    # For education channel, we use code-generated animations instead of AI images
+    import animations
+    temp_dir = tempfile.mkdtemp()
+    p = animations.create_title_card("Test Lesson", "Check", duration=2.0)
+    _TEST["video"] = p
+    return f"Animation engine generated title card: {p}"
 
 def c_depth():
-    import depth
-    p, real = depth.estimate(_TEST["img"], os.path.join(tempfile.mkdtemp(), "d.npy"))
-    _TEST["depth"] = p
-    if not real:
-        raise RuntimeError("AI depth model unavailable -> videos will use simple depth (still works, less 3D). See log above.")
-    return "AI depth model works"
+    # Skip depth check for education channel (not needed for code animations)
+    return "Not needed for education channel (code-based animations)"
 
 def c_mouth():
-    import mouth
-    m = mouth.detect(_TEST["img"], "bablu")
-    if not m:
-        raise RuntimeError("could not locate the mouth in the test image (talking effect will be skipped for such images)")
-    return f"mouth found at x={m['x']:.2f}, y={m['y']:.2f}"
+    # Skip mouth detection for education channel (faceless)
+    return "Not needed for education channel (faceless animations)"
 
 def c_render():
-    import motion3d, depth
+    # Test animation rendering
+    import animations
     d = tempfile.mkdtemp()
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=200:duration=1.5,tremolo=f=5:d=0.9",
-                    f"{d}/a.wav"], check=True)
-    dp = _TEST.get("depth") or depth.estimate(_TEST["img"], f"{d}/d.npy")[0]
-    motion3d.render_scene(dict(image=_TEST["img"], depth=dp, audio=f"{d}/a.wav", dur=1.5, camera="orbit", reaction="zoom",
-                               sticker="😂", mouth={"x": .5, "y": .45, "w": .2}, speaker="bablu", speaker_is_char=True, idx=0),
-                          f"{d}/o.mp4")
-    return f"3D animation engine renders ({os.path.getsize(d + '/o.mp4')//1024} KB test clip)"
+    p = animations.create_text_animation(
+        ["Test Line 1", "Test Line 2"],
+        duration=3.0,
+        animation_type="fade"
+    )
+    return f"Animation engine works: {os.path.getsize(p)//1024} KB test clip"
 
 def c_voice():
     import voice
