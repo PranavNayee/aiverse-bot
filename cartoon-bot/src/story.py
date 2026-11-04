@@ -1,4 +1,4 @@
-import json, re, time, requests
+import json, re, time, requests, os
 import config as C, safety
 from util import log, retry
 
@@ -59,6 +59,12 @@ def _clean_json(text):
     return json.loads(text)
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta"
+HF_API_URL = "https://api-inference.huggingface.co/models"
+HF_MODELS = [
+    "Qwen/Qwen2.5-72B-Instruct",
+    "meta-llama/Llama-3.3-70B-Instruct",
+    "mistralai/Mistral-7B-Instruct-v0.3"
+]
 LAST_MODEL = ""
 _cands = None
 
@@ -133,6 +139,84 @@ def gemini(prompt, temperature=1.0):
             log(f"Model {m} failed, trying next: {e}")
     raise RuntimeError(f"All Gemini models failed: {last}")
 
+def _huggingface_once(model, prompt, temperature):
+    """Call HuggingFace Inference API with JSON parsing."""
+    token = os.environ.get("HF_TOKEN")
+    if not token:
+        raise RuntimeError("HF_TOKEN not set")
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    # Format prompt for chat models
+    messages = [{"role": "user", "content": prompt}]
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "temperature": temperature,
+            "max_new_tokens": 2000,
+            "return_full_text": False
+        }
+    }
+    
+    for attempt in range(2):
+        r = requests.post(f"{HF_API_URL}/{model}", headers=headers, json=payload, timeout=120)
+        if r.status_code == 200:
+            try:
+                result = r.json()
+                # HF returns different formats depending on model
+                if isinstance(result, list) and len(result) > 0:
+                    text = result[0].get("generated_text", "")
+                elif isinstance(result, dict):
+                    text = result.get("generated_text", "") or result.get("text", "")
+                else:
+                    text = str(result)
+                
+                # Extract JSON from response
+                return _clean_json(text)
+            except json.JSONDecodeError:
+                # Try to find JSON in the response
+                json_match = re.search(r'\{.*\}', r.text, re.DOTALL)
+                if json_match:
+                    return _clean_json(json_match.group(0))
+                raise RuntimeError(f"HuggingFace {model} returned non-JSON: {r.text[:200]}")
+        
+        if r.status_code == 503:  # Model loading
+            log(f"HuggingFace {model} loading, waiting...")
+            time.sleep(20)
+            continue
+        
+        raise RuntimeError(f"HuggingFace {model} error {r.status_code}: {r.text[:200]}")
+    
+    raise RuntimeError(f"HuggingFace {model} timed out (model loading)")
+
+def huggingface(prompt, temperature=1.0):
+    """Try HuggingFace models."""
+    global LAST_MODEL
+    last = None
+    for model in HF_MODELS:
+        try:
+            out = _huggingface_once(model, prompt, temperature)
+            LAST_MODEL = f"HF:{model}"
+            return out
+        except Exception as e:
+            last = e
+            log(f"HuggingFace {model} failed: {e}")
+    raise RuntimeError(f"All HuggingFace models failed: {last}")
+
+def generate_story(prompt, temperature=1.0):
+    """Try HuggingFace first, then fall back to Gemini."""
+    # Try HuggingFace if token is available
+    if os.environ.get("HF_TOKEN"):
+        try:
+            log("Trying HuggingFace models...")
+            return huggingface(prompt, temperature)
+        except Exception as e:
+            log(f"HuggingFace failed, falling back to Gemini: {e}")
+    
+    # Fall back to Gemini
+    log("Using Gemini...")
+    return gemini(prompt, temperature)
+
 def _devanagari_ratio(text):
     letters = [c for c in text if c.isalpha()]
     return sum("\u0900" <= c <= "\u097F" for c in letters) / len(letters) if letters else 0
@@ -170,7 +254,7 @@ def validate(st):
 
 def review(st):
     script = "\n".join(f"[{s['speaker']}] {s['narration']}  (visual: {s['visual']})" for s in st["scenes"])
-    res = gemini(REVIEW_PROMPT.format(script=f"Topic: {st['topic']}\nCaption: {st['caption']}\n{script}"), temperature=0)
+    res = generate_story(REVIEW_PROMPT.format(script=f"Topic: {st['topic']}\nCaption: {st['caption']}\n{script}"), temperature=0)
     return bool(res.get("safe")), str(res.get("reason", ""))
 
 def make_story(trends, used, hints="", episode=1):
@@ -185,7 +269,7 @@ def make_story(trends, used, hints="", episode=1):
             hints=f"PERFORMANCE HINTS: {hints}\n" if hints else "",
             feedback=f"PREVIOUS ATTEMPT WAS REJECTED: {feedback}. Fix this.\n" if feedback else "")
         try:
-            st = validate(gemini(prompt))
+            st = validate(generate_story(prompt))
             ok, why = safety.local_check(st)
             if not ok:
                 feedback = why; log("Rejected (blocklist):", why); continue
