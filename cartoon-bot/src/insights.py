@@ -1,4 +1,4 @@
-import os, requests
+import requests
 import config as C
 from util import log
 from instagram import GRAPH
@@ -6,9 +6,6 @@ from instagram import GRAPH
 def performance_hints(history):
     """Looks at likes/comments of recent posts and tells the story writer what worked. Never raises."""
     try:
-        # Skip quietly if Instagram credentials are not configured yet
-        if not os.environ.get("IG_ACCESS_TOKEN") or not os.environ.get("IG_USER_ID"):
-            return ""
         scored = []
         for h in history[-20:]:
             mid = h.get("media_id")

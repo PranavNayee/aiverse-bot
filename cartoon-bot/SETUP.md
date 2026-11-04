@@ -1,80 +1,59 @@
-# Hindi Trending Cartoon Reels — Setup Guide (100% free tools)
+# Bablu ka Vlog — Hindi 3D-style trending cartoon Reels (free tools only)
 
-## How it works
-Every day at 8:00 AM IST: trending topics (India) → unsafe ones filtered → Gemini writes a Hindi comic story →
-a second Gemini "safety editor" reviews it → images → Hindi voices → video with subtitles, hook line, music ducking and
-end card → sent to your Telegram. You reply **/post** to publish or **/skip** to discard.
+## What it makes
+Every day (8:00 AM IST): trending topic (India) → unsafe topics filtered → Gemini writes a Hindi vlog-comedy episode
+→ safety-editor review → Pixar-style 3D images of Bablu (monkey) and Chiku (crow) → free AI depth model makes each
+picture move in 3D (parallax camera) → talking-mouth effect synced to the Hindi voice → beat-zoom, reactions, emoji
+stickers, coloured subtitles, hook line, end card, ducked music → Telegram preview.
+Reply **/post** to publish or **/skip** to discard.
 
-## Step 1 — GitHub repo
-Create a **public** repo (free unlimited Actions minutes) and upload everything in this folder
-(including the hidden `.github` folder). Your keys are stored in GitHub Secrets, never in the code.
+## Updating an existing repo (you already created `cartoon-bot` on GitHub)
+1. Unzip the new zip. In your repo: delete the old `src`, `tests`, `assets` folders and old files (open each → trash icon → commit),
+   then **upload everything from the new unzipped folder** (drag in `src`, `tests`, `assets`, `extras`, `requirements.txt`, `SETUP.md`, `workflows_copy`).
+2. Workflows: the hidden `.github` folder is easy to miss. Easiest way: in the repo open `workflows_copy/daily.yml` → pencil (edit) icon →
+   change the file name box from `workflows_copy/daily.yml` to `.github/workflows/daily.yml` → Commit. Repeat for `post.yml` and `check.yml`
+   (if they already exist in `.github/workflows`, open them and paste the new content instead).
+3. Add the new optional variable if you want (Settings → Secrets and variables → Actions → Variables): `MOUTH_FX` = `false` turns the talking-mouth effect off.
 
-## Step 2 — Get the free keys
-Add each under *Settings → Secrets and variables → Actions → New repository secret*.
-
-| Secret | How to get it |
+## Secrets (Settings → Secrets and variables → Actions → New repository secret)
+| Secret | Where |
 |---|---|
-| `GEMINI_API_KEY` | aistudio.google.com → Get API key |
-| `TELEGRAM_BOT_TOKEN` | Telegram → @BotFather → /newbot |
-| `TELEGRAM_CHAT_ID` | Send any message to your bot, open `https://api.telegram.org/bot<TOKEN>/getUpdates`, copy `chat` → `id` |
-| `SUPABASE_URL` | supabase.com → your project → Project Settings → API → Project URL (`https://xxxx.supabase.co`) |
-| `SUPABASE_SERVICE_KEY` | Same page → API Keys → `service_role` (legacy tab) or the `secret` key. **Powerful: keep private** |
-| `SUPABASE_BUCKET` | `cartoon-reels` (a **Public** bucket you create under Storage) |
-| `CF_API_TOKEN` + `CF_ACCOUNT_ID` *(optional)* | Cloudflare → My Profile → API Tokens → template "Workers AI", and your Cloudflare Account ID. **Backup image generator** if Pollinations is down |
-| `IG_USER_ID`, `IG_ACCESS_TOKEN` | Step 4 (do this last) |
+| `GEMINI_API_KEY` | aistudio.google.com |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | @BotFather, then `getUpdates` |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_BUCKET` | supabase.com (public bucket `cartoon-reels`) |
+| `CF_API_TOKEN` + `CF_ACCOUNT_ID` *(optional)* | Cloudflare Workers AI backup image generator |
+| `IG_USER_ID`, `IG_ACCESS_TOKEN` | Instagram setup (last) |
 
-## Step 3 — Run the pre-flight check (do this BEFORE Instagram)
-GitHub → **Actions → Pre-flight check → Run workflow**.
-It tests ffmpeg, the Hindi font, Gemini, Telegram, Supabase storage (including the public URL), image generation and Hindi voice,
-and sends a ✅/❌ report to your Telegram. Fix any ❌ (each line says what is wrong) and re-run until all are ✅.
-Then run **Actions → Daily cartoon reel → Run workflow** and watch the video arrive on Telegram.
-Review the first 5–10 videos carefully before trusting it.
+## Run order
+1. **Actions → Pre-flight check → Run workflow.** First run is slow (installs torch, downloads the depth model ~10 min). It reports ✅/❌ for
+   Gemini, Telegram, Supabase, image generation, **depth model**, **mouth detection**, the **3D animation engine**, voice, and Instagram.
+   Fix every ❌ (lines marked ⚠️ are optional features that fall back gracefully).
+2. **Actions → Daily cartoon reel → Run workflow.** Expect 10–20 minutes. Video arrives on Telegram.
+3. Look at the first 5–10 videos carefully before trusting it. Then Instagram setup, then `/post`.
 
-## Step 4 — Instagram API (longest step)
-1. Instagram → switch to a **Professional (Creator/Business)** account.
-2. Create a Facebook Page and link it to the Instagram account.
-3. developers.facebook.com → Create App (type **Business**) → add the **Instagram Graph API** product.
-4. Graph API Explorer → select your app → generate a **User token** with permissions:
-   `instagram_basic`, `instagram_content_publish`, `pages_show_list`, `pages_read_engagement`, `business_management`.
-5. Convert it to a long-lived user token (Graph API: `GET /oauth/access_token?grant_type=fb_exchange_token&client_id=APP_ID&client_secret=APP_SECRET&fb_exchange_token=SHORT_TOKEN`).
-6. Call `GET /me/accounts?access_token=LONG_USER_TOKEN`. The **Page access token** it returns (derived from a long-lived user token)
-   does not expire normally. **Use that Page token as `IG_ACCESS_TOKEN`.** Note the Page `id` too.
-7. Call `GET /{page-id}?fields=instagram_business_account&access_token=...` → the `id` inside is `IG_USER_ID`.
-8. Re-run the **Pre-flight check**; the Instagram line should show your username.
-You do not need app review while you only post to your own account (you're the app admin).
+## Controls (Variables)
+`REVIEW_MODE` = `approve` (default) | `auto_unless_skip` | `auto`  ·  `REVIEW_HOURS`  ·  `MOUTH_FX` = `true`/`false`
 
-## Step 5 — Daily use
-- Each morning you get the video on Telegram. Reply **/post** (or /skip).
-- A background workflow checks Telegram every 30 minutes (08:30–21:00 IST) and posts when it sees /post. Approve within 24 hours.
-- Want it fully automatic? *Settings → Secrets and variables → Actions → Variables*:
-  - `REVIEW_MODE` = `approve` (default, safest) | `auto_unless_skip` (posts after `REVIEW_HOURS`, default 2, unless you /skip) | `auto` (no review)
-- Post immediately: Actions → **Post approved reel** → Run workflow → tick *force_post*.
+## Customize (src/config.py)
+Characters (`CHARACTERS`: look + personality), series name, art style (`STYLE_3D`), voices/pitch, number of scenes, hashtags,
+topic blocklist. Put royalty-free `.mp3` files in `assets/music/`. (Copyrighted film songs will be muted/claimed; Instagram's API cannot add licensed music.)
+The older 2D puppet engine is kept in `extras/puppet_2d/` (not used).
 
-## Step 6 — Customize (src/config.py)
-Characters and art style, voices, number of scenes, hashtags, end-card text, and the topic blocklist (`BLOCK_EN`, `BLOCK_HI`).
-Put royalty-free `.mp3` files in `assets/music/` for background music (it automatically lowers when someone speaks).
-
-## Safety layers (so a bad joke doesn't go out)
-1. Blocklist removes political/religious/violent/tragic topics before the AI sees them.
-2. The story prompt forbids sensitive subjects and real-person jokes.
-3. Local blocklist re-check on the finished script.
-4. A second Gemini call acts as a strict safety editor (fails closed).
-5. You approve every video (default mode). No automated filter is perfect — keep `approve` mode for the first weeks.
+## Honest limits
+- This is a **2.5D** look: still AI pictures that move with depth parallax, zooms, reactions and a talking-mouth effect. It is **not** true AI video
+  (like Kling/Veo): limbs and bodies don't move. The talking-mouth effect depends on Gemini locating the mouth; if it looks bad, set `MOUTH_FX=false`.
+- Free image generation isn't perfectly consistent: Bablu will look similar, not identical, between scenes and days.
+- Free tiers change. The bot has fallbacks, but check occasionally. Kling/other paid video can be added later as a plug-in step.
+- Safety layers: blocklist → prompt rules → local re-check → second Gemini safety editor → your approval. Keep `approve` mode for the first weeks.
+- Captions say "AI-generated cartoon"; also use Instagram's AI label toggle.
 
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| Pre-flight says Hindi font missing | Workflows install `fonts-noto-core`; if running elsewhere: `sudo apt install fonts-noto-core` |
-| "public url returns 400/404" | The Supabase bucket must be switched to **Public** (Storage → bucket → edit → Public bucket) |
-| Images fail on all providers | Add the optional `CF_API_TOKEN` backup; or retry later |
-| Instagram error "(#10) / permission" | Token lacks `instagram_content_publish`, or the IG account is not Professional/linked to the Page |
-| Instagram "media not ready / unsupported format" | Video must be a public MP4 URL (check the Supabase public URL) — pre-flight tests this |
-| Nothing arrives on Telegram | You must send your bot a message first; check `TELEGRAM_CHAT_ID` |
-| Posting retries 3 times then stops | Fix the cause, then run *Post approved reel* with **force_post** |
-| Scheduled runs stopped | GitHub pauses idle repos after 60 days; the daily job makes a monthly keep-alive commit to prevent this |
-
-## Honest limits
-- Free image generators vary: characters can look slightly different day to day.
-- Supabase free tier: 1 GB storage, 50 MB per file; the bot auto-deletes old videos (keeps the newest 30 files). Free projects pause after ~7 days with no activity; the daily job keeps it active.
-- Free tiers change; if one stops working the backups/fallbacks help, but check occasionally.
-- Instagram requires AI-content labeling: captions say "AI-generated cartoon"; also use Instagram's AI label toggle.
+| Pre-flight: depth ⚠️ "unavailable" | Videos still work with simple depth. Check the log for the model download error and re-run |
+| Pre-flight: mouth ⚠️ | Normal for some images; set `MOUTH_FX=false` if results look odd |
+| Pre-flight: Supabase "public url returns 400/404" | Make the bucket **Public** |
+| Image generation ❌ | Add the optional Cloudflare backup (`CF_API_TOKEN`, `CF_ACCOUNT_ID`) or retry later |
+| Nothing on Telegram | Message your bot first; check `TELEGRAM_CHAT_ID` |
+| Instagram permission error | Token needs `instagram_content_publish`; IG must be Creator/Business linked to a Facebook Page |
+| Posting stops after 3 tries | Fix the cause, then run *Post approved reel* with **force_post** |

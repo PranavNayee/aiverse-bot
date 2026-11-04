@@ -31,14 +31,15 @@ def c_font():
     out = subprocess.run(["fc-list"], capture_output=True, text=True).stdout
     if "Devanagari" not in out:
         raise RuntimeError("Noto Sans Devanagari font missing (apt install fonts-noto-core). Hindi subtitles would show boxes.")
-    return "Devanagari font found"
+    if "Emoji" not in out:
+        raise RuntimeError("Hindi font OK, but emoji font missing (apt install fonts-noto-color-emoji): stickers will be skipped")
+    return "Hindi + emoji fonts found"
 
 def c_gemini():
     import story
-    r = story.generate('Return only JSON: {"ok": true}', temperature=0)
+    r = story.gemini('Return only JSON: {"ok": true}', temperature=0)
     if not r.get("ok"): raise RuntimeError(f"unexpected reply {r}")
-    hf = "HuggingFace" if os.environ.get("HF_TOKEN") else "Gemini"
-    return f"{hf} LLM reachable"
+    return f"Gemini reachable (models: {', '.join(C.GEMINI_MODELS)})"
 
 def c_trends():
     import trends
@@ -62,11 +63,39 @@ def c_storage():
         raise RuntimeError(f"upload works, but the PUBLIC url returns {r.status_code}. Make the bucket PUBLIC in Supabase: {url}")
     return "Supabase storage read/write + public URL OK"
 
+_TEST = {}
 def c_image():
     import images
-    p = images.make_image({"image_prompt": "a happy cartoon cat holding a samosa", "characters": []},
+    p = images.make_image({"visual": "the monkey vlogger smiling and waving at the camera in a sunny park", "with_sidekick": False},
                           os.path.join(tempfile.mkdtemp(), "t"))
-    return f"image generated ({os.path.getsize(p)//1024} KB)"
+    _TEST["img"] = p
+    return f"3D-style image generated ({os.path.getsize(p)//1024} KB): {p}"
+
+def c_depth():
+    import depth
+    p, real = depth.estimate(_TEST["img"], os.path.join(tempfile.mkdtemp(), "d.npy"))
+    _TEST["depth"] = p
+    if not real:
+        raise RuntimeError("AI depth model unavailable -> videos will use simple depth (still works, less 3D). See log above.")
+    return "AI depth model works"
+
+def c_mouth():
+    import mouth
+    m = mouth.detect(_TEST["img"], "bablu")
+    if not m:
+        raise RuntimeError("could not locate the mouth in the test image (talking effect will be skipped for such images)")
+    return f"mouth found at x={m['x']:.2f}, y={m['y']:.2f}"
+
+def c_render():
+    import motion3d, depth
+    d = tempfile.mkdtemp()
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=200:duration=1.5,tremolo=f=5:d=0.9",
+                    f"{d}/a.wav"], check=True)
+    dp = _TEST.get("depth") or depth.estimate(_TEST["img"], f"{d}/d.npy")[0]
+    motion3d.render_scene(dict(image=_TEST["img"], depth=dp, audio=f"{d}/a.wav", dur=1.5, camera="orbit", reaction="zoom",
+                               sticker="😂", mouth={"x": .5, "y": .45, "w": .2}, speaker="bablu", speaker_is_char=True, idx=0),
+                          f"{d}/o.mp4")
+    return f"3D animation engine renders ({os.path.getsize(d + '/o.mp4')//1024} KB test clip)"
 
 def c_voice():
     import voice
@@ -83,7 +112,9 @@ if __name__ == "__main__":
     check("Secrets", c_secrets); check("FFmpeg", c_ffmpeg); check("Hindi font", c_font)
     check("Gemini", c_gemini); check("Trends feed", c_trends, critical=False)
     check("Telegram", c_telegram); check("Supabase storage", c_storage)
-    check("Image generation", c_image); check("Hindi voice", c_voice)
+    check("Image generation", c_image); check("Depth (3D feel)", c_depth, critical=False)
+    check("Mouth detection", c_mouth, critical=False); check("3D animation engine", c_render)
+    check("Hindi voice", c_voice)
     check("Instagram token", c_ig, critical=False)
     lines = []
     for ok, name, info in results:

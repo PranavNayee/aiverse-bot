@@ -1,4 +1,6 @@
 requests
 edge-tts
-Pillow
-fal-client
+numpy
+pillow
+opencv-python-headless
+transformers

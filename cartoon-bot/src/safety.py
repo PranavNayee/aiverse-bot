@@ -13,7 +13,7 @@ def filter_trends(items):
 def story_text(st):
     parts = [st.get("topic", ""), st.get("title", ""), st.get("caption", ""), st.get("hook", "")]
     for s in st.get("scenes", []):
-        parts += [s.get("narration", ""), s.get("image_prompt", "")]
+        parts += [s.get("narration", ""), s.get("visual", ""), s.get("sticker", "")]
     return " ".join(parts)
 
 def local_check(st):

@@ -104,10 +104,14 @@ def _brow_layers(lx, rx, y):
     out["sad"]     = mk([(lx - 34, y + 14), (lx + 34, y - 12)], [(rx - 34, y - 12), (rx + 34, y + 14)])
     return out
 
+ARM_R = 340                                   # arm canvas is 2R x 2R, shoulder pivot at the centre
+
 def _arm(sleeve, skin, w_sleeve=90, length=270, hand_r=42):
-    c = _canvas(150, 440); d = ImageDraw.Draw(c)
-    ell(d, (75 - hand_r, 300 - hand_r + 38, 75 + hand_r, 300 + hand_r + 38), skin)
-    rr(d, (75 - w_sleeve / 2, 48, 75 + w_sleeve / 2, 48 + length), 44, sleeve)
+    R = ARM_R
+    c = _canvas(2 * R, 2 * R); d = ImageDraw.Draw(c)
+    hand_cy = R - 27 + length - 10
+    ell(d, (R - hand_r, hand_cy - hand_r, R + hand_r, hand_cy + hand_r), skin)
+    rr(d, (R - w_sleeve / 2, R - 27, R + w_sleeve / 2, R - 27 + length), 44, sleeve)
     return _done(c)
 
 # ------------------------------------------------------------------ CHINTU (short, chubby, moustache, yellow kurta)
@@ -138,15 +142,15 @@ def chintu():
     f = _canvas(460, 470); d = ImageDraw.Draw(f)                                 # moustache (front)
     for box in [(128, 288, 232, 336), (228, 288, 332, 336)]:
         ell(d, box, HAIR, OUT, 4)
-    poly(d, [(132, 300), (96, 268), (118, 322)], HAIR, None); poly(d, [(328, 300), (364, 268), (342, 322)], HAIR, None)
+    ell(d, (104, 276, 150, 326), HAIR, OUT, 4); ell(d, (310, 276, 356, 326), HAIR, OUT, 4)
     front = _done(f)
     parts = {"base": base, "front": front,
              "eyes": _eye_layers((172, 288), 224, 70, 80, 17),
              "mouth": _mouth_layers(230, 352),
-             "brow": _brow_layers(172, 288, 168)}
+             "brow": _brow_layers(172, 288, 182)}
     return Rig("chintu", body, _arm(KURTA, SKIN), _arm(KURTA, SKIN).transpose(Image.FLIP_LEFT_RIGHT), parts,
                neck=(260, 240), head_pivot=(230, 395), shoulders=((112, 292), (408, 292)),
-               arm_pivot=(75, 75), margins=(230, 280))
+               arm_pivot=(ARM_R, ARM_R), margins=(230, 280))
 
 # ------------------------------------------------------------------ MINTU (tall, thin, glasses, blue shirt)
 @functools.lru_cache(maxsize=None)
@@ -182,11 +186,11 @@ def mintu():
     parts = {"base": base, "front": front,
              "eyes": _eye_layers((172, 288), 242, 52, 62, 14, look_px=7),
              "mouth": _mouth_layers(230, 360),
-             "brow": _brow_layers(172, 288, 170)}
+             "brow": _brow_layers(172, 288, 180)}
     return Rig("mintu", body, _arm(SHIRT, SKIN, w_sleeve=64, length=300, hand_r=36),
                _arm(SHIRT, SKIN, w_sleeve=64, length=300, hand_r=36).transpose(Image.FLIP_LEFT_RIGHT), parts,
                neck=(220, 270), head_pivot=(230, 400), shoulders=((112, 300), (328, 300)),
-               arm_pivot=(75, 75), margins=(230, 280))
+               arm_pivot=(ARM_R, ARM_R), margins=(230, 280))
 
 def get_rig(name):
     return {"chintu": chintu, "mintu": mintu}[name]()

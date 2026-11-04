@@ -24,9 +24,7 @@ def video(path, caption, fallback_url=""):
     text(f"{caption[:600]}\n\n(Video upload to Telegram failed. Watch it here: {fallback_url})")
 
 def latest_command(since_ts):
-    """Reads recent Telegram messages from YOUR chat only. Returns 'post', 'skip' or None (latest command wins).
-    Uses since_ts to ignore old messages — does NOT consume/acknowledge updates so the same command
-    can be re-read safely across multiple 30-min polling runs until the reel is posted."""
+    """Reads recent Telegram messages from YOUR chat only. Returns 'post', 'skip' or None (latest command wins)."""
     r = requests.get(_api("getUpdates"), params={"limit": 100, "timeout": 0}, timeout=60)
     if r.status_code != 200:
         log("getUpdates failed:", r.text[:200]); return None
