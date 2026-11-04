@@ -298,6 +298,10 @@ def _devanagari_ratio(text):
 
 def validate(st):
     """Fix small problems, raise ValueError for big ones."""
+    # Ensure st is a dict, not a list or other type
+    if not isinstance(st, dict):
+        raise ValueError(f"Expected JSON object (dict), got {type(st).__name__}")
+    
     for k in ("topic", "caption"):
         if not str(st.get(k, "")).strip():
             raise ValueError(f"missing {k}")
