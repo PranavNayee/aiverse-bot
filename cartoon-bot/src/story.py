@@ -60,11 +60,20 @@ def _clean_json(text):
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta"
 HF_API_URL = "https://api-inference.huggingface.co/models"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
 HF_MODELS = [
     "Qwen/Qwen2.5-72B-Instruct",
     "meta-llama/Llama-3.3-70B-Instruct",
     "mistralai/Mistral-7B-Instruct-v0.3"
 ]
+
+GROQ_MODELS = [
+    "llama-3.3-70b-versatile",      # Fastest, most versatile
+    "llama-3.1-70b-versatile",      # Backup
+    "mixtral-8x7b-32768"            # Alternative
+]
+
 LAST_MODEL = ""
 _cands = None
 
@@ -203,8 +212,74 @@ def huggingface(prompt, temperature=1.0):
             log(f"HuggingFace {model} failed: {e}")
     raise RuntimeError(f"All HuggingFace models failed: {last}")
 
+def _groq_once(model, prompt, temperature):
+    """Call Groq API with JSON mode."""
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY not set")
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant that responds only with valid JSON. Never include markdown, explanations, or any text outside the JSON object."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": temperature,
+        "max_tokens": 2000,
+        "response_format": {"type": "json_object"}  # Force JSON output
+    }
+    
+    for attempt in range(2):
+        r = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=60)
+        if r.status_code == 200:
+            result = r.json()
+            content = result["choices"][0]["message"]["content"]
+            return _clean_json(content)
+        
+        if r.status_code == 429:  # Rate limit
+            log(f"Groq rate limit, waiting...")
+            time.sleep(5)
+            continue
+        
+        raise RuntimeError(f"Groq {model} error {r.status_code}: {r.text[:200]}")
+    
+    raise RuntimeError(f"Groq {model} rate limited")
+
+def groq(prompt, temperature=1.0):
+    """Try Groq models (fastest!)."""
+    global LAST_MODEL
+    last = None
+    for model in GROQ_MODELS:
+        try:
+            out = _groq_once(model, prompt, temperature)
+            LAST_MODEL = f"Groq:{model}"
+            return out
+        except Exception as e:
+            last = e
+            log(f"Groq {model} failed: {e}")
+    raise RuntimeError(f"All Groq models failed: {last}")
+
 def generate_story(prompt, temperature=1.0):
-    """Try HuggingFace first, then fall back to Gemini."""
+    """Try Groq first (fastest), then HuggingFace, then Gemini fallback."""
+    # Try Groq first (super fast!)
+    if os.environ.get("GROQ_API_KEY"):
+        try:
+            log("Trying Groq models (fastest)...")
+            return groq(prompt, temperature)
+        except Exception as e:
+            log(f"Groq failed, trying HuggingFace: {e}")
+    
     # Try HuggingFace if token is available
     if os.environ.get("HF_TOKEN"):
         try:
