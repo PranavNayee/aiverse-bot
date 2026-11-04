@@ -10,12 +10,19 @@ def _ext(data):
     return None
 
 def build_prompt(scene):
+    """Enhanced prompt with character consistency anchors and seed reference."""
     who = [C.CHARACTERS["bablu"]["look"]]
     if scene.get("with_sidekick"):
         who.append(C.CHARACTERS["chiku"]["look"])
-    return (f"{C.STYLE_3D}. Characters: {' and '.join(who)}. Shot: {scene['visual']}. "
+    
+    # Add consistency keywords to keep character appearance uniform across scenes
+    consistency = ("Consistent character design, same face and features as reference, "
+                   "identical proportions, signature style maintained")
+    
+    return (f"{C.STYLE_3D}. {consistency}. Characters: {' and '.join(who)}. Shot: {scene['visual']}. "
             f"Main character large in frame, face clearly visible, mouth visible, looking at the camera. "
-            f"No text, no letters, no logos, no watermark.")
+            f"Professional animation quality, perfect lighting, sharp focus on character. "
+            f"No text, no letters, no logos, no watermark, clean composition.")
 
 def _pollinations(prompt, seed):
     url = (f"https://image.pollinations.ai/prompt/{quote(prompt)}"

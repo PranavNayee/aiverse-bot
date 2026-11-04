@@ -24,6 +24,12 @@ REVIEW_MODE  = env("REVIEW_MODE", "approve")
 REVIEW_HOURS = float(env("REVIEW_HOURS", "2"))
 MOUTH_FX     = env("MOUTH_FX", "true").lower() == "true"     # talking-mouth effect (set false if it looks bad)
 
+# Visual enhancements (set to "false" to disable)
+ADD_INTRO       = env("ADD_INTRO", "true").lower() == "true"        # Branded intro clip
+ADD_OUTRO       = env("ADD_OUTRO", "true").lower() == "true"        # CTA outro clip
+ADD_TRANSITIONS = env("ADD_TRANSITIONS", "true").lower() == "true"  # Crossfade between scenes
+KARAOKE_SUBS    = env("KARAOKE_SUBS", "true").lower() == "true"     # Word-by-word karaoke timing
+
 # Leave GEMINI_MODELS empty: the bot asks Google which Flash models exist today (names get retired often).
 # To force specific ones, set the variable GEMINI_MODELS="model-a,model-b".
 GEMINI_MODELS = [m.strip() for m in env("GEMINI_MODELS", "").split(",") if m.strip()]

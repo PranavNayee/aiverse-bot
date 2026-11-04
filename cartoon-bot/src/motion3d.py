@@ -28,13 +28,37 @@ def _vignette():
     return (1.0 - 0.28 * np.clip(r - 0.35, 0, 1) ** 1.4)[..., None]
 
 def _camera(kind, p, t):
-    """Returns zoom, pan_x, pan_y, parallax_x, parallax_y for progress p (0..1) and time t."""
+    """Returns zoom, pan_x, pan_y, parallax_x, parallax_y for progress p (0..1) and time t.
+    Enhanced with spiral, dolly_zoom, crane, drift camera moves."""
     if kind == "orbit":
         z, px, py, qx, qy = 1.09, 0, 0, 52 * (2 * p - 1), 12 * math.sin(TAU * p)
     elif kind == "pull":
         z, px, py, qx, qy = 1.16 - 0.13 * p, 0, 0, 34 * (1 - 2 * p), 8
     elif kind == "shake":
         z, px, py, qx, qy = 1.07 + 0.015 * math.sin(TAU * 3 * t), 9 * math.sin(TAU * 7.3 * t), 7 * math.sin(TAU * 9.1 * t), 20 * math.sin(TAU * 1.5 * t), 8
+    elif kind == "spiral":
+        # Zoom in while orbiting - creates dramatic spiral effect
+        z = 1.0 + 0.18 * p
+        angle = TAU * 0.7 * p
+        radius = 45 * (1 - p * 0.6)
+        px, py = radius * math.cos(angle), radius * math.sin(angle) * 0.6
+        qx, qy = 35 * math.sin(TAU * 0.5 * p), 10
+    elif kind == "dolly_zoom":
+        # Vertigo effect - zoom changes but subject stays same size via parallax compensation
+        z = 1.0 + 0.22 * p
+        px, py, qx, qy = 0, 0, 40 * p, 12 * p
+    elif kind == "crane":
+        # Vertical movement with slight tilt - like a crane shot
+        z = 1.06 + 0.05 * math.sin(TAU * 0.5 * p)
+        px = 12 * (2 * p - 1)
+        py = -60 * p + 15 * math.sin(TAU * 0.3 * p)  # rising up
+        qx, qy = 25 * (1 - p), 15
+    elif kind == "drift":
+        # Slow lateral drift with subtle zoom - dreamy, floating feeling
+        z = 1.04 + 0.08 * (p * p * (3 - 2 * p))
+        px = 50 * (p - 0.5)
+        py = 8 * math.sin(TAU * 0.4 * p)
+        qx, qy = 28 * math.sin(TAU * 0.5 * p), 6
     else:  # push
         z, px, py, qx, qy = 1.0 + 0.15 * (p * p * (3 - 2 * p)), 0, 0, 30 * math.sin(TAU * 0.6 * p), 8 * math.sin(TAU * 0.4 * p)
     return z, px + 4 * math.sin(TAU * 0.7 * t), py + 3 * math.sin(TAU * 0.9 * t + 1), qx, qy      # + handheld wobble

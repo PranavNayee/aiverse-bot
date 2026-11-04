@@ -34,6 +34,48 @@ Reply **/post** to publish or **/skip** to discard.
 ## Controls (Variables)
 `REVIEW_MODE` = `approve` (default) | `auto_unless_skip` | `auto`  ·  `REVIEW_HOURS`  ·  `MOUTH_FX` = `true`/`false`
 
+**New Visual Enhancements (all enabled by default):**
+- `ADD_INTRO` = `true`/`false` — Branded intro clip (2 seconds)
+- `ADD_OUTRO` = `true`/`false` — CTA outro with follow prompt (2.5 seconds)
+- `ADD_TRANSITIONS` = `true`/`false` — Smooth crossfade between scenes
+- `KARAOKE_SUBS` = `true`/`false` — Word-by-word karaoke subtitles with glow effects
+
+## Enhanced Features
+
+### 🎥 Advanced Camera Movements
+8 professional camera moves (AI picks based on scene emotion):
+- **push** — Classic slow zoom in (default)
+- **orbit** — Circular camera movement around subject
+- **pull** — Zoom out reveal
+- **shake** — Handheld chaos effect
+- **spiral** — Dramatic zoom + orbit combo
+- **dolly_zoom** — Vertigo/Hitchcock effect
+- **crane** — Vertical rise with tilt
+- **drift** — Dreamy floating lateral move
+
+### ✨ Professional Subtitles
+- **Karaoke timing** — Words highlight as spoken (like music videos)
+- **Glow effects** — 3-layer outline + blur for cinematic look
+- **Color-coded speakers** — Bablu (cyan), Chiku (yellow-orange), Narrator (white)
+- **Smooth animations** — Bounce-in, scale pulse, fade effects
+- **Better readability** — Larger font, thicker outlines, professional spacing
+
+### 🎬 Intro/Outro System
+- **Auto-generated intros** — Series name with fade animation (or use custom `assets/intro.mp4`)
+- **CTA outros** — Call-to-action with "Follow for more!" prompt (or use custom `assets/outro.mp4`)
+- **Seamless integration** — Matches your video style and branding
+
+### 🔄 Scene Transitions
+- **Crossfade** — Smooth dissolve between scenes (0.4 second overlap)
+- **Audio crossfade** — Dialogue blends naturally between clips
+- **Smart timing** — Only applies if clips are long enough (preserves short clips)
+
+### 🎨 Better Image Consistency
+- **Enhanced prompts** — Character reference keywords ensure uniform appearance
+- **Consistency anchors** — "Same face and features", "identical proportions"
+- **Professional quality tags** — "Perfect lighting", "sharp focus", "clean composition"
+- Uses same seed + detailed character descriptions for better scene-to-scene matching
+
 ## Customize (src/config.py)
 Characters (`CHARACTERS`: look + personality), series name, art style (`STYLE_3D`), voices/pitch, number of scenes, hashtags,
 topic blocklist. Put royalty-free `.mp3` files in `assets/music/`. (Copyrighted film songs will be muted/claimed; Instagram's API cannot add licensed music.)

@@ -27,8 +27,11 @@ RULES
    the topic. The speaking character must be big in frame, face clearly visible, looking at camera. No text or signs.
    Never depict real people.
 6. "with_sidekick": true only if Chiku is visible. If speaker is chiku it must be true.
-7. "camera": one of push, orbit, pull, shake. "reaction": none, zoom or shake (use zoom/shake on the punchline).
-8. "sticker": one emoji to pop on screen for emphasis, or "".
+7. "camera": push (slow zoom in), orbit (circular move), pull (zoom out), shake (handheld), spiral (dramatic zoom+orbit),
+   dolly_zoom (vertigo effect), crane (vertical rise), drift (floating lateral). Match camera to emotion: spiral/crane for
+   dramatic moments, shake for chaos, drift for dreamy, push for normal, dolly_zoom for shock/realization.
+8. "reaction": none, zoom or shake (use zoom/shake on the punchline).
+9. "sticker": one emoji to pop on screen for emphasis, or "".
 9. "hook": 3-6 word Hindi curiosity line shown at the start.
 
 Return ONLY JSON:
@@ -47,7 +50,7 @@ SCRIPT:
 
 Return ONLY JSON: {{"safe": true/false, "reason": "short reason"}}"""
 
-CAMERAS = ("push", "orbit", "pull", "shake")
+CAMERAS = ("push", "orbit", "pull", "shake", "spiral", "dolly_zoom", "crane", "drift")
 REACTIONS = ("none", "zoom", "shake")
 
 def _clean_json(text):
