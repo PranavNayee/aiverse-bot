@@ -1,236 +1,180 @@
-"""Generate Hinglish lesson scripts using AI"""
-import json, re
+"""Writes the lesson script as structured scenes (what to SAY + what to SHOW), then has a second AI fact-check it.
+No silent fallback: if a good, checked script can't be made, we raise and the bot alerts you instead of posting junk."""
+import re
+import llm
 from util import log
-import config as C
 
-# Prompt for generating educational lesson scripts in Hinglish
-LESSON_PROMPT = """You write educational AI/ML lessons for Instagram Reels in HINGLISH (Hindi + English mix).
-The channel teaches AI concepts to Indian audience - beginners to advanced.
+SCHEMA = """Scene kinds and their "visual" fields (keep texts SHORT, they appear big on a phone screen):
+- hook:     {"text": "question/surprise, max 9 words", "emoji": "one emoji"}
+- bullets:  {"heading": "max 4 words", "items": ["max 6 words each", 2 to 4 items]}
+- flow:     {"heading": "max 4 words", "steps": [{"label": "max 3 words", "emoji": "one emoji"}, 2 to 5 steps], "caption": "optional, max 8 words"}
+- compare:  {"left_title": "max 3 words", "right_title": "max 3 words", "left": ["max 4 words", 2 to 3 items], "right": ["max 4 words", 2 to 3 items]}
+- network:  {"heading": "max 4 words", "layers": [e.g. 3,4,4,2 (2 to 5 numbers, each 1 to 6)], "labels": ["Input","Hidden","Output"]}
+- code:     {"heading": "max 4 words", "lines": ["valid short Python, max 34 chars per line, max 8 lines"]}
+- stat:     {"big": "big number/term, max 10 chars", "caption": "max 8 words", "emoji": "one emoji"}
+- formula:  {"heading": "max 4 words", "lines": ["max 28 chars per line, max 2 lines"], "note": "max 8 words"}
+- takeaway: {"text": "one-line summary, max 14 words", "terms": ["max 3 words", exactly 3 key terms]}
+- cta:      {"text": "teaser for the next lesson, max 10 words"}"""
 
-LESSON DETAILS:
-Title: {title}
-Title (English): {title_en}
-Concept: {concept}
-Hook: {hook}
-Analogy: {analogy}
-Difficulty: {difficulty}
+LESSON_PROMPT = """You write a 45-60 second Instagram Reel lesson for an Indian audience, in HINGLISH, for a faceless animated channel called "AI Seekho".
+
+LESSON #{num} ({level}): {title}  /  {title_en}
+CORE FACTS (the ONLY facts you may state as true): {facts}
+Everyday Indian analogy to use: {analogy}
 Keywords: {keywords}
+Next lesson (for the teaser): {next_title}
+{feedback}
+LANGUAGE (critical): Hinglish in ROMAN script only (no Devanagari). Hindi words like hai, kaise, kyun, matlab, samjho; technical terms in English (model, data, neural network). Friendly, like explaining to a friend. No emojis or symbols like = * % in "narration" (it is read aloud), write numbers/terms as words where needed.
+ACCURACY (critical): Do not invent statistics, dates, names, prices or claims beyond the CORE FACTS. If the analogy is imperfect, say "kuch aisa" or "roughly". Never mention politics or religion.
 
-TARGET AUDIENCE: Indian students, developers, tech enthusiasts who speak Hindi + English naturally
+STRUCTURE: 7 to 9 scenes. Scene 1 kind=hook (narration 8-14 words). Then analogy, concept breakdown (use different visual kinds: flow / compare / network / bullets / formula / code / stat where they truly fit the topic), an example, then kind=takeaway, last kind=cta (narration 10-16 words, tease the next lesson, ask to follow).
+Each scene "narration": 12-30 words (hook and cta may be shorter). Total narration about 120-170 words.
+Visuals must show THIS lesson's real content (real step names, real layer sizes, real formula), never generic placeholders.
 
-LANGUAGE RULES (CRITICAL):
-1. Use HINGLISH - natural mix of Hindi and English
-2. Technical terms in ENGLISH: AI, Machine Learning, Neural Network, Algorithm, Data, Model
-3. Explanations in HINDI: kaise, kya, kyun, hota hai, kaam karta hai, seekhta hai
-4. Examples: "Machine Learning ek technique hai jahan computer khud se seekhta hai data se"
-5. Keep it conversational and simple - jaise dost ko samjha rahe ho
-
-STRUCTURE (45-60 seconds total):
-1. HOOK (3-5s): Question that grabs attention (from provided hook)
-2. SETUP (8-12s): Introduce concept with everyday Indian analogy
-3. EXPLANATION (20-30s): Break down the concept simply with 2-3 key points
-4. EXAMPLE (8-12s): Real-world example they can relate to
-5. TAKEAWAY (5-8s): One-line summary they'll remember
-6. CTA (5s): "Next lesson mein..." + follow call
-
-VISUAL INSTRUCTIONS:
-- "visual_type": {visual_type}
-- Describe what animation/diagram to show
-- No faces, no characters - only diagrams, text, animations
-- Clean, minimal, educational style
-
-HINGLISH EXAMPLES:
-✅ GOOD: "Neural Network ek aisa system hai jo human brain ki tarah kaam karta hai"
-✅ GOOD: "Data collect karke pattern dhundho, phir prediction karo"
-✅ GOOD: "Jaise aap roz chai peete ho aur dukaan wala yaad kar leta hai"
-❌ BAD: "तंत्रिका नेटवर्क एक प्रणाली है" (too formal Hindi)
-❌ BAD: "Neural network is a system" (too much English)
+{schema}
 
 Return ONLY JSON:
-{{
-  "hook": "Hinglish hook question with emoji",
-  "segments": [
-    {{"type": "setup", "narration_hi": "Hinglish text", "duration": 10, "visual": "what to show"}},
-    {{"type": "explanation", "narration_hi": "Hinglish explanation", "duration": 25, "visual": "diagram description"}},
-    {{"type": "example", "narration_hi": "Hinglish example", "duration": 10, "visual": "example visual"}},
-    {{"type": "takeaway", "narration_hi": "Hinglish one-liner", "duration": 6, "visual": "highlight box"}},
-    {{"type": "cta", "narration_hi": "Hinglish CTA", "duration": 5, "visual": "next lesson teaser"}}
-  ],
-  "caption_summary": "2-3 line Hinglish summary",
-  "key_terms": ["term1", "term2", "term3"]
-}}"""
+{{"scenes": [{{"kind": "hook", "narration": "...", "visual": {{...}}}}, ...],
+ "caption_summary": "2 short Hinglish lines",
+ "key_terms": ["term1", "term2", "term3"]}}"""
 
-FUN_FACT_PROMPT = """You write entertaining AI fun facts for Instagram Reels in HINGLISH (Hindi + English mix).
-These are weekend special episodes - light, fun, interesting AI trivia.
+FACT_PROMPT = """You are a strict senior ML engineer fact-checking a short Hinglish lesson for beginners.
 
-TOPIC: {topic}
+REFERENCE FACTS: {facts}
+LESSON TOPIC: {title_en}
 
-STYLE: Casual, fun, surprising - make AI interesting!
+SCRIPT (narration and on-screen text):
+{script}
 
-LANGUAGE: Hinglish (Hindi + English naturally mixed)
-- Keep it light and conversational
-- Use emojis for energy
-- Make it shareable
+Check: (1) every claim is correct and consistent with the reference facts and standard ML knowledge; (2) nothing misleading or invented (numbers, dates, names); (3) the analogy does not teach a wrong idea; (4) the on-screen text (steps, formulas, code, layers) is correct; (5) no politics, religion or unsafe content; (6) it actually explains the topic.
+Verdict: "pass" = fine; "minor" = small wording issues only; "major" = any factual error, misleading claim, wrong formula/code, or off-topic.
+Return ONLY JSON: {{"verdict": "pass|minor|major", "issues": ["short description of each problem and how to fix it"]}}"""
 
-STRUCTURE (40-50 seconds):
-1. HOOK (3s): Surprising fact or question
-2. STORY (20-25s): Tell the interesting story/fact
-3. DETAILS (10-15s): Add context or additional facts
-4. CLOSING (5s): Funny or thought-provoking ending + CTA
+FUN_PROMPT = """You write a 35-45 second weekend "AI fun fact" Instagram Reel in HINGLISH (Roman script) for the channel "AI Seekho".
+TOPIC: {title}
+CORE FACT (the ONLY fact you may state): {facts}
+{feedback}
+Rules: friendly, surprising, accurate. Do not add facts, numbers or dates beyond the core fact. No emojis/symbols in "narration". 5 to 6 scenes: hook, 2-3 story/explain scenes (use stat / bullets / flow / compare kinds), takeaway, cta (tease next weekend fact, ask to follow).
 
-EXAMPLES OF FUN FACTS:
-- "Pehla AI program 1951 mein chess khelne ke liye bana tha!"
-- "ChatGPT ko train karne mein $100 million se zyada lage!"
-- "AI ab painting bhi bana sakta hai jo auction mein lakhs mein bikti hai!"
+{schema}
 
-Return ONLY JSON:
-{{
-  "hook": "Surprising Hinglish hook",
-  "segments": [
-    {{"type": "story", "narration_hi": "Hinglish story", "duration": 22, "visual": "fun animation"}},
-    {{"type": "details", "narration_hi": "Hinglish details", "duration": 12, "visual": "supporting visual"}},
-    {{"type": "closing", "narration_hi": "Hinglish closing", "duration": 5, "visual": "end screen"}}
-  ],
-  "caption_summary": "Fun Hinglish summary",
-  "shareability_factor": "Why this is interesting to share"
-}}"""
+Return ONLY JSON: {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {{...}}}}, ...], "caption_summary": "2 short Hinglish lines", "key_terms": ["t1","t2","t3"]}}"""
 
-def _clean_json(text):
-    """Extract and parse JSON from AI response"""
-    text = re.sub(r"^```(?:json)?", "", text.strip()).strip()
-    text = re.sub(r"```$", "", text).strip()
-    return json.loads(text)
+KINDS = {"hook", "bullets", "flow", "compare", "network", "code", "stat", "formula", "takeaway", "cta"}
 
-def generate_lesson_script(lesson, lesson_num, use_groq=True):
-    """Generate Hinglish lesson script using AI
-    
-    Args:
-        lesson: Lesson dict from syllabus
-        lesson_num: Lesson number
-        use_groq: Use Groq API (faster)
-    
-    Returns:
-        Parsed lesson script dict
-    """
-    
-    prompt = LESSON_PROMPT.format(
-        title=lesson["title"],
-        title_en=lesson["title_en"],
-        concept=lesson["concept"],
-        hook=lesson["hook"],
-        analogy=lesson["analogy"],
-        difficulty=lesson["difficulty"],
-        keywords=", ".join(lesson["keywords"]),
-        visual_type=lesson["visual_type"]
-    )
-    
-    log(f"Generating script for Lesson #{lesson_num}: {lesson['title']}")
-    
-    # Use existing AI generation (Groq → HF → Gemini fallback)
-    from story import generate_story
-    
+def _s(x, n):
+    return re.sub(r"\s+", " ", str(x or "")).strip()[:n]
+
+def _list(x, lo, hi, n):
+    items = [_s(i, n) for i in (x or []) if _s(i, n)]
+    if len(items) < lo:
+        raise ValueError(f"needs {lo}-{hi} items")
+    return items[:hi]
+
+def _roman_ratio(text):
+    letters = [c for c in text if c.isalpha()]
+    return sum(c.isascii() for c in letters) / len(letters) if letters else 0
+
+def clean_scene(i, sc):
+    """Validate and trim one scene; raises ValueError with a message the writer can learn from."""
+    kind = sc.get("kind")
+    if kind not in KINDS:
+        raise ValueError(f"scene {i}: unknown kind '{kind}'")
+    nar = _s(sc.get("narration"), 400)
+    words = len(nar.split())
+    if not (5 <= words <= 38):
+        raise ValueError(f"scene {i}: narration has {words} words (need 8-30)")
+    if _roman_ratio(nar) < 0.9:
+        raise ValueError(f"scene {i}: narration must be Roman-script Hinglish, no Devanagari")
+    v = sc.get("visual") or {}
     try:
-        result = generate_story(prompt, temperature=0.8)
-        log(f"Lesson script generated: {len(str(result))} chars")
-        return result
-    except Exception as e:
-        log(f"Script generation error: {e}")
-        # Fallback to simple template
-        return {
-            "hook": lesson["hook"],
-            "segments": [
-                {
-                    "type": "setup",
-                    "narration_hi": f"{lesson['title']} ke baare mein seekhte hain aaj.",
-                    "duration": 8,
-                    "visual": "title card"
-                },
-                {
-                    "type": "explanation",
-                    "narration_hi": f"{lesson['title_en']} ek important concept hai AI mein.",
-                    "duration": 25,
-                    "visual": "concept diagram"
-                },
-                {
-                    "type": "takeaway",
-                    "narration_hi": "Yaad rakho: practice se better hoga!",
-                    "duration": 6,
-                    "visual": "key point"
-                },
-                {
-                    "type": "cta",
-                    "narration_hi": "Next lesson mein aur seekhenge! Follow karo 🔔",
-                    "duration": 5,
-                    "visual": "follow button"
-                }
-            ],
-            "caption_summary": lesson["title"],
-            "key_terms": lesson["keywords"][:3]
-        }
+        if kind == "hook":
+            vis = {"text": _s(v.get("text"), 70), "emoji": _s(v.get("emoji"), 4)}
+            assert vis["text"]
+        elif kind == "bullets":
+            vis = {"heading": _s(v.get("heading"), 34), "items": _list(v.get("items"), 2, 4, 44)}
+        elif kind == "flow":
+            steps = [{"label": _s(s.get("label"), 26), "emoji": _s(s.get("emoji"), 4)} for s in (v.get("steps") or []) if isinstance(s, dict) and _s(s.get("label"), 26)]
+            assert 2 <= len(steps) <= 5
+            vis = {"heading": _s(v.get("heading"), 34), "steps": steps[:5], "caption": _s(v.get("caption"), 60)}
+        elif kind == "compare":
+            vis = {"left_title": _s(v.get("left_title"), 22), "right_title": _s(v.get("right_title"), 22),
+                   "left": _list(v.get("left"), 2, 3, 34), "right": _list(v.get("right"), 2, 3, 34)}
+        elif kind == "network":
+            layers = [int(x) for x in (v.get("layers") or [])]
+            assert 2 <= len(layers) <= 5 and all(1 <= x <= 6 for x in layers)
+            vis = {"heading": _s(v.get("heading"), 34), "layers": layers, "labels": [_s(x, 12) for x in (v.get("labels") or [])][:5]}
+        elif kind == "code":
+            lines = [str(l).rstrip()[:36] for l in (v.get("lines") or []) if str(l).strip()][:8]
+            assert len(lines) >= 1
+            vis = {"heading": _s(v.get("heading"), 34), "lines": lines}
+        elif kind == "stat":
+            vis = {"big": _s(v.get("big"), 12), "caption": _s(v.get("caption"), 60), "emoji": _s(v.get("emoji"), 4)}
+            assert vis["big"]
+        elif kind == "formula":
+            lines = [_s(l, 30) for l in (v.get("lines") or []) if _s(l, 30)][:2]
+            assert lines
+            vis = {"heading": _s(v.get("heading"), 34), "lines": lines, "note": _s(v.get("note"), 60)}
+        elif kind == "takeaway":
+            vis = {"text": _s(v.get("text"), 100), "terms": _list(v.get("terms"), 1, 3, 24)}
+            assert vis["text"]
+        else:  # cta
+            vis = {"text": _s(v.get("text"), 80) or "Agla lesson miss mat karna"}
+    except (AssertionError, ValueError, TypeError) as e:
+        raise ValueError(f"scene {i} ({kind}): visual fields invalid or missing ({e})")
+    return {"kind": kind, "narration": nar, "visual": vis}
 
-def generate_fun_fact_script(topic):
-    """Generate weekend fun fact script in Hinglish"""
-    
-    prompt = FUN_FACT_PROMPT.format(topic=topic)
-    
-    log(f"Generating fun fact script: {topic}")
-    
-    from story import generate_story
-    
-    try:
-        result = generate_story(prompt, temperature=1.0)
-        log(f"Fun fact script generated")
-        return result
-    except Exception as e:
-        log(f"Fun fact generation error: {e}")
-        return {
-            "hook": "AI ke baare mein interesting fact! 🤯",
-            "segments": [
-                {
-                    "type": "story",
-                    "narration_hi": f"{topic} ke baare mein ek interesting story hai.",
-                    "duration": 22,
-                    "visual": "animated story"
-                },
-                {
-                    "type": "closing",
-                    "narration_hi": "Aur bhi facts dekhne ke liye follow karo! 🔔",
-                    "duration": 5,
-                    "visual": "subscribe"
-                }
-            ],
-            "caption_summary": f"AI Fun Fact: {topic}",
-            "shareability_factor": "Interesting AI trivia"
-        }
+def validate(raw, min_scenes=5, max_scenes=10):
+    if not isinstance(raw, dict) or not isinstance(raw.get("scenes"), list):
+        raise ValueError("answer must be a JSON object with a 'scenes' list")
+    scenes = [clean_scene(i + 1, s) for i, s in enumerate(raw["scenes"]) if isinstance(s, dict)]
+    if not (min_scenes <= len(scenes) <= max_scenes):
+        raise ValueError(f"need {min_scenes}-{max_scenes} scenes, got {len(scenes)}")
+    if scenes[0]["kind"] != "hook" or scenes[-1]["kind"] != "cta":
+        raise ValueError("first scene must be kind=hook and last scene kind=cta")
+    if len({s["kind"] for s in scenes}) < 3:
+        raise ValueError("use at least 3 different visual kinds")
+    total = sum(len(s["narration"].split()) for s in scenes)
+    if not (80 <= total <= 210):
+        raise ValueError(f"total narration is {total} words (need about 110-170)")
+    terms = [_s(t, 28) for t in (raw.get("key_terms") or []) if _s(t, 28)][:3]
+    return {"scenes": scenes, "caption_summary": _s(raw.get("caption_summary"), 260), "key_terms": terms}
 
-def validate_script(script):
-    """Validate generated script has required fields"""
-    required = ["hook", "segments", "caption_summary"]
-    for field in required:
-        if field not in script:
-            raise ValueError(f"Missing required field: {field}")
-    
-    if not script["segments"] or len(script["segments"]) < 2:
-        raise ValueError("Need at least 2 segments")
-    
-    # Check total duration
-    total_duration = sum(seg.get("duration", 0) for seg in script["segments"])
-    if not (35 <= total_duration <= 75):
-        log(f"Warning: Total duration {total_duration}s outside 35-75s range")
-    
-    log(f"Script validated: {len(script['segments'])} segments, {total_duration}s total")
-    return True
+def _script_text(script):
+    return "\n".join(f"[{s['kind']}] SAY: {s['narration']} | SHOW: {s['visual']}" for s in script["scenes"])
 
-if __name__ == "__main__":
-    # Test lesson script generation
-    from syllabus import get_lesson_by_number
-    
-    lesson, level = get_lesson_by_number(2)
-    if lesson:
-        print(f"Testing: Lesson #{lesson['id']} - {lesson['title']}")
-        print(f"Level: {level}")
-        print(f"Concept: {lesson['concept']}")
-        print("\nGenerating script...")
-        
-        # This would call AI in production
-        print("(In production, AI would generate Hinglish script here)")
+def fact_check(script, facts, title_en):
+    res = llm.generate_json(FACT_PROMPT.format(facts=facts, title_en=title_en, script=_script_text(script)),
+                            temperature=0, order=("groq", "gemini"))
+    verdict = str(res.get("verdict", "major")).lower()
+    return verdict, [str(i)[:200] for i in (res.get("issues") or [])][:5]
+
+def _make(prompt_fn, facts, title_en, min_scenes, max_scenes, attempts=4):
+    feedback = ""
+    for n in range(1, attempts + 1):
+        fb = f"\nYOUR PREVIOUS ATTEMPT WAS REJECTED. Fix exactly this: {feedback}\n" if feedback else ""
+        try:
+            script = validate(llm.generate_json(prompt_fn(fb), temperature=0.7), min_scenes, max_scenes)
+        except ValueError as e:
+            feedback = str(e); log(f"  attempt {n} rejected (format): {e}"); continue
+        verdict, issues = fact_check(script, facts, title_en)
+        log(f"  attempt {n}: fact-check = {verdict} {issues}")
+        if verdict in ("pass", "minor"):
+            script["fact_check"] = verdict
+            return script
+        feedback = "factual problems: " + "; ".join(issues or ["unspecified"])
+    raise RuntimeError(f"Could not produce a correct lesson after {attempts} attempts. Last problem: {feedback}")
+
+def generate_lesson_script(lesson, num, next_lesson):
+    def prompt(fb):
+        return LESSON_PROMPT.format(num=num, level=lesson["level"], title=lesson["title"], title_en=lesson["title_en"],
+                                    facts=lesson["facts"], analogy=lesson["analogy"], keywords=", ".join(lesson["keywords"]),
+                                    next_title=next_lesson["title"], feedback=fb, schema=SCHEMA)
+    log(f"Writing lesson #{num}: {lesson['title_en']}")
+    return _make(prompt, lesson["facts"], lesson["title_en"], 6, 10)
+
+def generate_fun_fact_script(fact):
+    def prompt(fb):
+        return FUN_PROMPT.format(title=fact["title"], facts=fact["facts"], feedback=fb, schema=SCHEMA)
+    log(f"Writing fun fact: {fact['title']}")
+    return _make(prompt, fact["facts"], fact["title"], 4, 8)
