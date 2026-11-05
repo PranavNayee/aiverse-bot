@@ -46,54 +46,47 @@ SERIES_NAME = env("SERIES_NAME", "AI Seekho")
 CHANNEL_HASHTAGS = ["#aiseekho", "#hinglish", "#aiexplained", "#machinelearning", "#hindi", "#techeducation"]
 CTA_TEXT = "Roz naya lesson - Follow karo! 🔔"
 
-# Deep male voice for education (authoritative, warm, conversational)
-# Using deeper US/UK voices that read Hinglish clearly
+# Indian voices for proper Hinglish pronunciation
+# US/UK voices butcher Hindi words - ONLY use Indian voices!
 VOICES = {
-    # Main teaching voice - DEEP, warm, authoritative
+    # Main teaching voice - INDIAN male voice (pronounces Hindi correctly)
     "hinglish": {
-        "voice": "en-US-AndrewNeural",  # Deep warm male - confident, conversational
-        "rate": "+3%",   # Teaching pace (clear and deliberate)
-        "pitch": "-2Hz"  # Deep, authoritative tone
+        "voice": "en-IN-PrabhatNeural",  # Indian English Male - reads Hinglish naturally
+        "rate": "+3%",   # Clear teaching pace
+        "pitch": "+0Hz"  # Natural deep male voice
     },
     
-    # Alternative very deep voice (news anchor style)
-    "hinglish_deep": {
-        "voice": "en-US-ChristopherNeural",  # Deepest voice - news anchor authority
-        "rate": "+0%",   # Natural pace for gravitas
-        "pitch": "-3Hz"  # Extra deep for maximum authority
-    },
-    
-    # Energetic deep voice (for exciting topics)
-    "hinglish_energetic": {
-        "voice": "en-US-GuyNeural",  # Deep passionate - engaging
-        "rate": "+5%",
-        "pitch": "-2Hz"
-    },
-    
-    # Narrator for explanations (calm, deep, clear)
-    "narrator": {
-        "voice": "en-US-AndrewNeural",  # Deep conversational
-        "rate": "+0%",   # Slower for clarity
-        "pitch": "-3Hz"  # Extra deep for gravitas
-    },
-    
-    # For pure Hindi segments (Hindi male voice)
-    "hindi": {
-        "voice": "hi-IN-MadhurNeural",  # Hindi Male - friendly
-        "rate": "+5%",
+    # Alternative: Pure Hindi voice (for Hindi-heavy segments)
+    "hinglish_hindi": {
+        "voice": "hi-IN-MadhurNeural",  # Pure Hindi Male - perfect Hindi pronunciation
+        "rate": "+3%",
         "pitch": "+0Hz"
     },
     
-    # Indian English male (backup)
-    "hindi_male": {
-        "voice": "en-IN-PrabhatNeural",  # Indian English Male
-        "rate": "+5%",
+    # Narrator for explanations (slower, clearer)
+    "narrator": {
+        "voice": "en-IN-PrabhatNeural",  # Same voice, slower
+        "rate": "+0%",   # Natural pace for maximum clarity
+        "pitch": "+0Hz"
+    },
+    
+    # For pure Hindi segments (warm male voice)
+    "hindi": {
+        "voice": "hi-IN-MadhurNeural",  # Hindi Male - warm, natural
+        "rate": "+3%",
+        "pitch": "+0Hz"
+    },
+    
+    # Female backup (Indian voice)
+    "hindi_female": {
+        "voice": "en-IN-NeerjaNeural",  # Indian Female - clear Hinglish
+        "rate": "+3%",
         "pitch": "+0Hz"
     },
 }
 
-# Default voice to use for lessons - DEEP male voice
-DEFAULT_LESSON_VOICE = "hinglish"  # Uses en-US-AndrewNeural (deep warm male)
+# Default voice to use for lessons - Indian male voice (BEST for Hinglish)
+DEFAULT_LESSON_VOICE = "hinglish"  # Uses en-IN-PrabhatNeural (pronounces Hindi correctly!)
 
 # Content type for determining what to generate
 CONTENT_MODE = env("CONTENT_MODE", "educational")  # "educational" or "entertainment"

@@ -71,13 +71,39 @@ def put(frame, im, cx, cy, scale=1.0, alpha=1.0):
     """Paste an RGBA sprite centred at (cx, cy) with scale and opacity."""
     if im is None or alpha <= 0.01 or scale <= 0.01:
         return
+    # Safety checks for coordinates and scale
+    if not (0 <= cx <= W and 0 <= cy <= H):
+        return  # Skip if outside frame
+    scale = max(0.01, min(scale, 10.0))  # Clamp scale to reasonable range
+    alpha = clamp(alpha, 0, 1)
+    
     if abs(scale - 1) > 0.01:
-        im = im.resize((max(1, int(im.width * scale)), max(1, int(im.height * scale))), Image.BILINEAR)
+        new_w = max(1, int(im.width * scale))
+        new_h = max(1, int(im.height * scale))
+        try:
+            im = im.resize((new_w, new_h), Image.BILINEAR)
+        except Exception:
+            return  # Skip if resize fails
     if alpha < 0.99:
-        im = im.copy(); a = im.getchannel("A").point(lambda v: int(v * alpha)); im.putalpha(a)
-    frame.alpha_composite(im, (int(cx - im.width / 2), int(cy - im.height / 2))) if (
-        cx - im.width / 2 >= 0 and cy - im.height / 2 >= 0 and cx + im.width / 2 <= W and cy + im.height / 2 <= H) else \
-        frame.paste(im, (int(cx - im.width / 2), int(cy - im.height / 2)), im)
+        im = im.copy()
+        a = im.getchannel("A").point(lambda v: int(v * alpha))
+        im.putalpha(a)
+    
+    # Calculate paste position
+    paste_x = int(cx - im.width / 2)
+    paste_y = int(cy - im.height / 2)
+    
+    # Check if image is within frame bounds
+    if paste_x + im.width < 0 or paste_x > W or paste_y + im.height < 0 or paste_y > H:
+        return  # Completely outside frame
+    
+    try:
+        if 0 <= paste_x < W and 0 <= paste_y < H and paste_x + im.width <= W and paste_y + im.height <= H:
+            frame.alpha_composite(im, (paste_x, paste_y))
+        else:
+            frame.paste(im, (paste_x, paste_y), im)
+    except Exception:
+        pass  # Silently skip if paste fails
 
 def wrap(d, text, fnt, maxw):
     words, lines, cur = text.split(), [], ""
@@ -159,15 +185,21 @@ def s_hook(frame, d, v, t, dur, ctx):
     ring = 0.5 + 0.5 * math.sin(TAU * 0.7 * t)
     for k in (0, 1):                                   # pulsing rings behind the emoji
         r = 250 + 55 * ((ring + k * .5) % 1)
-        d.ellipse((540 - r, 600 - r, 540 + r, 600 + r), outline=rgba(acc, .35 * (1 - ((ring + k * .5) % 1))), width=5)
-    put(frame, e, 540, 600 + 10 * math.sin(TAU * 0.6 * t), pop)
+        r = max(r, 10)  # Safety: ensure positive radius
+        alpha_val = .35 * (1 - ((ring + k * .5) % 1))
+        if alpha_val > 0.01:  # Only draw if visible
+            d.ellipse((540 - r, 600 - r, 540 + r, 600 + r), outline=rgba(acc, alpha_val), width=5)
+    if e and pop > 0:  # Only draw emoji if it exists and is visible
+        put(frame, e, 540, 600 + 10 * math.sin(TAU * 0.6 * t), pop)
     f, lines, size = fit(d, v["text"], 900, 400, 100, 56)
     y0 = 960
     for i, ln in enumerate(lines):
         p = ease_out(prog(t, 0.35 + 0.18 * i, 0.5))
-        ctext(d, 540, y0 + i * size * 1.2 + (1 - p) * 50, ln, f, rgba(TEXT, p))
+        if p > 0:  # Only draw if visible
+            ctext(d, 540, y0 + i * size * 1.2 + (1 - p) * 50, ln, f, rgba(TEXT, p))
     wbar = 560 * ease_out(prog(t, 0.9, 0.7))
-    d.rounded_rectangle((540 - wbar / 2, y0 + len(lines) * size * 1.2 + 20, 540 + wbar / 2, y0 + len(lines) * size * 1.2 + 32), 6, fill=rgba(acc))
+    if wbar > 2:  # Only draw bar if it's visible
+        d.rounded_rectangle((540 - wbar / 2, y0 + len(lines) * size * 1.2 + 20, 540 + wbar / 2, y0 + len(lines) * size * 1.2 + 32), 6, fill=rgba(acc))
 
 def s_bullets(frame, d, v, t, dur, ctx):
     acc, items = ctx["accent"], v["items"]
@@ -250,6 +282,11 @@ def s_network(frame, d, v, t, dur, ctx):
     acc, layers = ctx["accent"], v["layers"]
     if v.get("heading"):
         ctext(d, 540, 340, v["heading"], font(62), rgba(acc, ease_out(prog(t, 0, .5))))
+    
+    # Safety check for layers
+    if not layers or len(layers) < 2:
+        layers = [3, 4, 2]  # Default safe network
+    
     xs = np.linspace(170, W - 170, len(layers))
     cy, sp = 790, min(140, 620 / max(max(layers), 1))
     pos = [[(xs[i], cy + (j - (n - 1) / 2) * sp) for j in range(n)] for i, n in enumerate(layers)]
@@ -257,9 +294,10 @@ def s_network(frame, d, v, t, dur, ctx):
     wave = (t * 0.55) % 1.0
     for i in range(len(layers) - 1):
         pe = min(reveal[i], reveal[i + 1])
-        for a in pos[i]:
-            for b in pos[i + 1]:
-                d.line([a, b], fill=rgba(INDIGO, .28 * pe), width=2)
+        if pe > 0:  # Only draw if visible
+            for a in pos[i]:
+                for b in pos[i + 1]:
+                    d.line([a, b], fill=rgba(INDIGO, .28 * pe), width=2)
         if pe >= 1:                                      # signal pulses travelling forward
             k = clamp(wave * (len(layers) - 1) - i, 0, 1)
             if 0 < k < 1:
@@ -271,12 +309,16 @@ def s_network(frame, d, v, t, dur, ctx):
         glowk = 1 - abs(((wave * (len(layers) - 1)) - i)) if reveal[-1] >= 1 else 0
         for (x, y) in layer:
             r = 36 * ease_back(reveal[i])
-            if r < 1:
+            if r < 2:  # Skip tiny/negative circles
                 continue
             col = mix(MUTED, acc, clamp(glowk))
             if glowk > 0.2:
-                d.ellipse((x - r - 14, y - r - 14, x + r + 14, y + r + 14), fill=rgba(acc, .25 * glowk))
-            d.ellipse((x - r, y - r, x + r, y + r), fill=rgba(col), outline=rgba(TEXT, .9), width=3)
+                # Safety check for glow radius
+                glow_r = max(r + 14, 2)
+                d.ellipse((x - glow_r, y - glow_r, x + glow_r, y + glow_r), fill=rgba(acc, .25 * glowk))
+            # Safety check for node radius
+            node_r = max(r, 2)
+            d.ellipse((x - node_r, y - node_r, x + node_r, y + node_r), fill=rgba(col), outline=rgba(TEXT, .9), width=3)
     labels = v.get("labels") or []
     if not labels:
         labels = ["Input"] + ["Hidden"] * (len(layers) - 2) + ["Output"]
