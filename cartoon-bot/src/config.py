@@ -46,6 +46,10 @@ SERIES_NAME = env("SERIES_NAME", "AI Seekho")
 CHANNEL_HASHTAGS = ["#aiseekho", "#hinglish", "#aiexplained", "#machinelearning", "#hindi", "#techeducation"]
 CTA_TEXT = "Roz naya lesson - Follow karo! 🔔"
 
+# Content language mode (new: switch between Hinglish and English)
+# Options: "hinglish" (default), "english_only", "hindi_only"
+LANGUAGE_MODE = env("LANGUAGE_MODE", "hinglish")
+
 # Indian voices for proper Hinglish pronunciation
 # US/UK voices butcher Hindi words - ONLY use Indian voices!
 VOICES = {
@@ -54,6 +58,13 @@ VOICES = {
         "voice": "en-IN-PrabhatNeural",  # Indian English Male - reads Hinglish naturally
         "rate": "+3%",   # Clear teaching pace
         "pitch": "+0Hz"  # Natural deep male voice
+    },
+    
+    # English-only mode (clear American English)
+    "english": {
+        "voice": "en-US-AndrewNeural",  # US English Male - clear, professional
+        "rate": "+5%",
+        "pitch": "+0Hz"
     },
     
     # Alternative: Pure Hindi voice (for Hindi-heavy segments)
@@ -85,8 +96,18 @@ VOICES = {
     },
 }
 
-# Default voice to use for lessons - Indian male voice (BEST for Hinglish)
-DEFAULT_LESSON_VOICE = "hinglish"  # Uses en-IN-PrabhatNeural (pronounces Hindi correctly!)
+# Auto-select voice based on language mode
+def get_lesson_voice():
+    """Get the appropriate voice based on LANGUAGE_MODE"""
+    if LANGUAGE_MODE == "english_only":
+        return "english"
+    elif LANGUAGE_MODE == "hindi_only":
+        return "hindi"
+    else:  # hinglish (default)
+        return "hinglish"
+
+# Default voice to use for lessons - adapts to language mode
+DEFAULT_LESSON_VOICE = get_lesson_voice()
 
 # Content type for determining what to generate
 CONTENT_MODE = env("CONTENT_MODE", "educational")  # "educational" or "entertainment"

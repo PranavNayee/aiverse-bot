@@ -1,6 +1,0 @@
-requests
-edge-tts
-numpy
-pillow
-opencv-python-headless
-transformers

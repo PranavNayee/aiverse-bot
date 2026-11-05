@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Test files
+test_*.py
+*_test.py
+
+# Voice samples (keep in .gitignore, not in repo)
+voice_tests/
+deep_voice_samples/
+indian_voice_samples/
+*.mp3
+*.mp4
+*.avi
+
+# Work files
+work/
+temp/
+tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backup folders
+*" 2"
+* 2/
+*.old
+*.bak
+
+# Zip files
+*.zip
+files/

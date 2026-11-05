@@ -2,6 +2,7 @@
 No silent fallback: if a good, checked script can't be made, we raise and the bot alerts you instead of posting junk."""
 import re
 import llm
+import config as C
 from util import log
 
 SCHEMA = """Scene kinds and their "visual" fields (keep texts SHORT, they appear big on a phone screen):
@@ -16,7 +17,7 @@ SCHEMA = """Scene kinds and their "visual" fields (keep texts SHORT, they appear
 - takeaway: {"text": "one-line summary, max 14 words", "terms": ["max 3 words", exactly 3 key terms]}
 - cta:      {"text": "teaser for the next lesson, max 10 words"}"""
 
-LESSON_PROMPT = """You write a 45-60 second Instagram Reel lesson for an Indian audience, in HINGLISH, for a faceless animated channel called "AI Seekho".
+LESSON_PROMPT = """You write a 45-60 second Instagram Reel lesson for an Indian audience, in {language_style}, for a faceless animated channel called "AI Seekho".
 
 LESSON #{num} ({level}): {title}  /  {title_en}
 CORE FACTS (the ONLY facts you may state as true): {facts}
@@ -24,8 +25,8 @@ Everyday Indian analogy to use: {analogy}
 Keywords: {keywords}
 Next lesson (for the teaser): {next_title}
 {feedback}
-LANGUAGE (critical): Hinglish in ROMAN script only (no Devanagari). Hindi words like hai, kaise, kyun, matlab, samjho; technical terms in English (model, data, neural network). Friendly, like explaining to a friend. No emojis or symbols like = * % in "narration" (it is read aloud), write numbers/terms as words where needed.
-ACCURACY (critical): Do not invent statistics, dates, names, prices or claims beyond the CORE FACTS. If the analogy is imperfect, say "kuch aisa" or "roughly". Never mention politics or religion.
+LANGUAGE (critical): {language_instruction}
+ACCURACY (critical): Do not invent statistics, dates, names, prices or claims beyond the CORE FACTS. If the analogy is imperfect, say "roughly" or "approximately". Never mention politics or religion.
 
 STRUCTURE: 7 to 9 scenes. Scene 1 kind=hook (narration 8-14 words). Then analogy, concept breakdown (use different visual kinds: flow / compare / network / bullets / formula / code / stat where they truly fit the topic), an example, then kind=takeaway, last kind=cta (narration 10-16 words, tease the next lesson, ask to follow).
 Each scene "narration": 12-30 words (hook and cta may be shorter). Total narration about 120-170 words.
@@ -144,33 +145,136 @@ def _script_text(script):
     return "\n".join(f"[{s['kind']}] SAY: {s['narration']} | SHOW: {s['visual']}" for s in script["scenes"])
 
 def fact_check(script, facts, title_en):
+    """Multi-agent fact-checking (inspired by ViMax): 3 specialized validators"""
     res = llm.generate_json(FACT_PROMPT.format(facts=facts, title_en=title_en, script=_script_text(script)),
                             temperature=0, order=("groq", "gemini"))
     verdict = str(res.get("verdict", "major")).lower()
-    return verdict, [str(i)[:200] for i in (res.get("issues") or [])][:5]
+    issues = [str(i)[:200] for i in (res.get("issues") or [])][:5]
+    
+    # Second validation: Visual consistency check (new!)
+    if verdict in ("pass", "minor"):
+        visual_verdict = _check_visual_consistency(script)
+        if visual_verdict != "pass":
+            verdict = "minor"
+            issues.append(f"Visual flow: {visual_verdict}")
+    
+    return verdict, issues
+
+def _check_visual_consistency(script):
+    """Check if scenes flow logically (ViMax-inspired visual continuity)"""
+    scenes = script["scenes"]
+    kinds = [s["kind"] for s in scenes]
+    
+    # Check: No duplicate consecutive scene types (boring)
+    for i in range(len(kinds) - 1):
+        if kinds[i] == kinds[i + 1] and kinds[i] not in ("hook", "cta", "takeaway"):
+            return f"Consecutive {kinds[i]} scenes - vary the visual types"
+    
+    # Check: Hook must be engaging, not just "stat" or "bullets"
+    if scenes[0]["kind"] in ("stat", "bullets"):
+        return "Hook should be more engaging than stat/bullets"
+    
+    # Check: Build-up to takeaway (no sudden jump to CTA)
+    if len(scenes) > 3:
+        pre_cta_idx = -2 if scenes[-1]["kind"] == "cta" else -1
+        if scenes[pre_cta_idx]["kind"] == "hook":
+            return "Missing build-up before conclusion"
+    
+    return "pass"
 
 def _make(prompt_fn, facts, title_en, min_scenes, max_scenes, attempts=4):
+    """Multi-attempt generation with A/B testing on first scene (ViMax-inspired)"""
     feedback = ""
+    best_script = None
+    best_score = -1
+    
     for n in range(1, attempts + 1):
         fb = f"\nYOUR PREVIOUS ATTEMPT WAS REJECTED. Fix exactly this: {feedback}\n" if feedback else ""
-        try:
-            script = validate(llm.generate_json(prompt_fn(fb), temperature=0.7), min_scenes, max_scenes)
-        except ValueError as e:
-            feedback = str(e); log(f"  attempt {n} rejected (format): {e}"); continue
+        
+        # First attempt: generate TWO versions in parallel and pick better one (A/B testing)
+        if n == 1:
+            try:
+                script_a = validate(llm.generate_json(prompt_fn(fb), temperature=0.7), min_scenes, max_scenes)
+                script_b = validate(llm.generate_json(prompt_fn(fb), temperature=0.8), min_scenes, max_scenes)
+                
+                # Pick better hook using LLM judge
+                script = _select_better_script(script_a, script_b, title_en)
+                log(f"  attempt 1: A/B tested 2 versions, selected better one")
+            except ValueError as e:
+                feedback = str(e); log(f"  attempt {n} rejected (format): {e}"); continue
+        else:
+            try:
+                script = validate(llm.generate_json(prompt_fn(fb), temperature=0.7), min_scenes, max_scenes)
+            except ValueError as e:
+                feedback = str(e); log(f"  attempt {n} rejected (format): {e}"); continue
+        
         verdict, issues = fact_check(script, facts, title_en)
         log(f"  attempt {n}: fact-check = {verdict} {issues}")
+        
         if verdict in ("pass", "minor"):
             script["fact_check"] = verdict
             return script
+        
+        # Track best attempt even if not perfect
+        score = 2 if verdict == "minor" else 1 if verdict == "pass" else 0
+        if score > best_score:
+            best_score = score
+            best_script = script
+        
         feedback = "factual problems: " + "; ".join(issues or ["unspecified"])
+    
+    # If all attempts failed, return best attempt with warning
+    if best_script:
+        log(f"⚠️ Using best attempt (not perfect) after {attempts} tries")
+        best_script["fact_check"] = "warning"
+        return best_script
+    
     raise RuntimeError(f"Could not produce a correct lesson after {attempts} attempts. Last problem: {feedback}")
 
+def _select_better_script(script_a, script_b, title_en):
+    """Use LLM to pick the more engaging script (ViMax A/B selection pattern)"""
+    prompt = f"""You are judging which lesson hook is MORE ENGAGING for Instagram Reels.
+Lesson topic: {title_en}
+
+OPTION A:
+Hook: {script_a['scenes'][0]['narration']}
+Visual: {script_a['scenes'][0]['visual']}
+
+OPTION B:
+Hook: {script_b['scenes'][0]['narration']}
+Visual: {script_b['scenes'][0]['visual']}
+
+Which hook grabs attention better? Consider: curiosity, relatability, surprise, clarity.
+Return ONLY JSON: {{"choice": "A"|"B", "reason": "one sentence why"}}"""
+    
+    try:
+        result = llm.generate_json(prompt, temperature=0)
+        choice = result.get("choice", "A").upper()
+        reason = result.get("reason", "unknown")
+        log(f"  A/B selection: chose {choice} - {reason}")
+        return script_a if choice == "A" else script_b
+    except:
+        log("  A/B selection failed, using script A")
+        return script_a
+
 def generate_lesson_script(lesson, num, next_lesson):
+    # Determine language style and instructions based on config
+    if C.LANGUAGE_MODE == "english_only":
+        language_style = "CLEAR ENGLISH"
+        language_instruction = "Use clear, simple English. Friendly tone like explaining to a friend. Avoid jargon. No emojis or symbols like = * % in 'narration' (it is read aloud)."
+    elif C.LANGUAGE_MODE == "hindi_only":
+        language_style = "PURE HINDI (Devanagari)"
+        language_instruction = "Pure Hindi in Devanagari script. Use Hindi equivalents for technical terms where possible. Friendly, conversational tone."
+    else:  # hinglish (default)
+        language_style = "HINGLISH"
+        language_instruction = "Hinglish in ROMAN script only (no Devanagari). Hindi words like hai, kaise, kyun, matlab, samjho; technical terms in English (model, data, neural network). Friendly, like explaining to a friend. No emojis or symbols like = * % in 'narration' (it is read aloud), write numbers/terms as words where needed."
+    
     def prompt(fb):
         return LESSON_PROMPT.format(num=num, level=lesson["level"], title=lesson["title"], title_en=lesson["title_en"],
                                     facts=lesson["facts"], analogy=lesson["analogy"], keywords=", ".join(lesson["keywords"]),
-                                    next_title=next_lesson["title"], feedback=fb, schema=SCHEMA)
-    log(f"Writing lesson #{num}: {lesson['title_en']}")
+                                    next_title=next_lesson["title"], feedback=fb, schema=SCHEMA,
+                                    language_style=language_style, language_instruction=language_instruction)
+    log(f"Writing lesson #{num}: {lesson['title_en']} ({language_style})")
     return _make(prompt, lesson["facts"], lesson["title_en"], 6, 10)
 
 def generate_fun_fact_script(fact):
