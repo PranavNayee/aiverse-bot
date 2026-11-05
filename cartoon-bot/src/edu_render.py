@@ -242,7 +242,7 @@ def s_compare(frame, d, v, t, dur, ctx):
                 d.text((x0 + 76, cy + (j - (len(l2) - 1) / 2) * s2 * 1.15), ln, font=f2, fill=rgba(TEXT, pi), anchor="lm")
     pv = ease_back(prog(t, 0.9, 0.5))
     if pv > 0:
-        r = 52 * pv + 4 * math.sin(TAU * t)
+        r = max(1, 52 * pv + 4 * math.sin(TAU * t))  # Ensure r is always positive
         d.ellipse((540 - r, 790 - r, 540 + r, 790 + r), fill=rgba(DARK), outline=rgba(ctx["accent"]), width=5)
         ctext(d, 540, 790, "VS", font(int(46 * pv) + 1), rgba(TEXT))
 
