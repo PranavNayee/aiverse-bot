@@ -192,7 +192,7 @@ def run_lesson_generation():
         }
     else:
         log("📚 Weekday - generating lesson")
-        lesson_num, lesson, next_lesson = syllabus.get_next_lesson(history)
+        lesson, lesson_num, next_lesson = syllabus.get_next_lesson(history)
         
         if not lesson:
             log("⚠️ No more lessons in syllabus!")
