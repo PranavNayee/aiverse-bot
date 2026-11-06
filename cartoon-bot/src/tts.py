@@ -101,21 +101,30 @@ def gemini_tts_models():
 
     def rank(n):                                        # newest version first, flash before pro (quota)
         v = re.search(r"(\d+(?:\.\d+)?)", n)
-        return (-(float(v.group(1)) if v else 0), "pro" in n, "preview" in n, n)
+        return (-(float(v.group(1)) if v else 0), "lite" in n, "pro" in n, "preview" in n, n)
     _gem_models = forced or sorted(names, key=rank)[:3] or ["gemini-2.5-flash-preview-tts"]
     log("Gemini TTS models:", _gem_models)
     return _gem_models
 
 
-def _direction():
+def _direction(text, minimal=False):
+    """Gemini TTS speaks the TRANSCRIPT only; the notes above it steer the performance."""
+    if minimal:
+        return f"Say naturally, like a friendly human teacher: {text}"
     if C.LANGUAGE_MODE == "english_only":
-        return ("Read this aloud as a real human: a warm, confident young Indian male tech teacher talking to a "
-                "friend in an Instagram reel. Natural Indian-English accent, conversational, expressive, "
-                "energetic but clear, natural pauses, never robotic. Text:\n")
-    return ("Read this aloud as a real human: a warm, confident young Indian male teacher explaining to a friend in "
-            "an Instagram reel. Speak natural Hinglish exactly like people in Delhi or Mumbai talk - Hindi words "
-            "with perfect Hindi pronunciation, English tech words in Indian English. Conversational, expressive, "
-            "energetic but clear, natural pauses, never robotic. Text:\n")
+        accent = "Natural Indian-English accent, crisp and clear."
+    else:
+        accent = ("Natural Hinglish exactly as spoken in Delhi or Mumbai: Hindi words with perfect Hindi pronunciation, "
+                  "English tech words in Indian English.")
+    return ("Read ONLY the text under TRANSCRIPT aloud. Never read these notes.\n"
+            "# AUDIO PROFILE: a warm, confident young Indian male tech teacher making an Instagram reel.\n"
+            f"# DIRECTOR'S NOTES\nStyle: real human, conversational, expressive, energetic but clear, smiling. "
+            f"Never robotic.\nAccent: {accent}\nPace: natural, short pauses at commas and full stops.\n"
+            f"# TRANSCRIPT\n{text}")
+
+
+def _max_secs(text):
+    return 2.5 + 0.75 * len(text.split())          # generous; reading the notes aloud would blow way past this
 
 
 def _gemini_one(text, path):
@@ -125,7 +134,7 @@ def _gemini_one(text, path):
             try:
                 r = requests.post(f"{GEM_URL}/models/{model}:generateContent",
                                   headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]}, timeout=(10, 90),
-                                  json={"contents": [{"parts": [{"text": _direction() + text}]}],
+                                  json={"contents": [{"parts": [{"text": _direction(text, minimal=attempt == 2)}]}],
                                         "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {
                                             "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": C.GEMINI_VOICE}}}}})
             except requests.exceptions.RequestException as e:
@@ -136,7 +145,12 @@ def _gemini_one(text, path):
                 pcm = np.frombuffer(base64.b64decode(part["data"]), dtype=np.int16).astype(np.float32) / 32768.0
                 if len(pcm) < rate * 0.4:
                     last = "empty audio"; continue
-                return model, _trim(pcm, rate), rate
+                pcm = _trim(pcm, rate)
+                if len(pcm) / rate > _max_secs(text):         # it read the director's notes too
+                    last = f"audio too long ({len(pcm) / rate:.1f}s for {len(text.split())} words)"
+                    log(f"  Gemini TTS {model}: {last} - retrying")
+                    continue
+                return model, pcm, rate
             last = f"{model} {r.status_code}: {r.text[:160]}"
             if r.status_code == 429:
                 m = re.search(r'"retryDelay":\s*"(\d+)', r.text)
