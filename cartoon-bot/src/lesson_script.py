@@ -199,6 +199,11 @@ def _make(prompt_fn, facts, title_en, min_scenes, max_scenes, attempts=4):
                     versions.append(validate(llm.generate_json(prompt_fn(fb), temperature=temp), min_scenes, max_scenes))
                 except ValueError as e:
                     err = e; log(f"  attempt 1 variant rejected (format): {e}")
+                except RuntimeError as e:          # AI providers down: keep variant A if we have it
+                    if not versions:
+                        raise
+                    log(f"  second A/B variant skipped (AI busy): {str(e)[:120]}")
+                    break
             if not versions:
                 feedback = str(err); continue
             if len(versions) == 2:

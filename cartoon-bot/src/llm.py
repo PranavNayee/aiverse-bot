@@ -59,7 +59,12 @@ def _groq_call(model, prompt, temperature):
         except requests.exceptions.RequestException as e:
             raise _Overloaded(f"Groq {model}: {e}")
         if r.status_code == 200:
-            return extract_json(r.json()["choices"][0]["message"]["content"])
+            try:
+                return extract_json(r.json()["choices"][0]["message"]["content"])
+            except (ValueError, KeyError, IndexError, TypeError):
+                if json_mode:
+                    continue                                           # broken/empty JSON: one more try
+                raise
         if r.status_code == 429:
             time.sleep(min(float(r.headers.get("retry-after", 8)), 20)); raise _Overloaded(f"Groq {model} rate limited")
         if r.status_code == 400 and json_mode:
@@ -110,8 +115,31 @@ def _gemini_call(model, prompt, temperature):
     raise RuntimeError(f"Gemini {model} {r.status_code}: {r.text[:150]}")
 
 # ---------------- public ----------------
-def generate_json(prompt, temperature=0.7, order=("gemini", "groq"), _retry=False):
-    """Try providers/models in order until one returns valid JSON. Raises if all fail (never returns junk)."""
+ROUND_WAITS = (20, 60, 120)     # when EVERY model fails (provider outages), wait and try all of them again
+
+
+def generate_json(prompt, temperature=0.7, order=("gemini", "groq")):
+    """Try providers/models in order until one returns valid JSON. If every model fails (both providers busy,
+    rate limits, broken JSON) wait and retry the whole set a few times. Raises if all rounds fail."""
+    for i, wait in enumerate((0,) + ROUND_WAITS):
+        if wait:
+            log(f"  all AI models failed - waiting {wait}s, then retrying (round {i + 1}/{len(ROUND_WAITS) + 1})")
+            time.sleep(wait)
+            _DEAD.clear()                       # give benched models another chance
+        try:
+            return _one_pass(prompt, temperature, order)
+        except _NoKeys:
+            raise
+        except RuntimeError as e:
+            last = e
+    raise last
+
+
+class _NoKeys(RuntimeError):
+    pass
+
+
+def _one_pass(prompt, temperature=0.7, order=("gemini", "groq"), _retry=False):
     global LAST
     errors = []
     for prov in order:
@@ -144,6 +172,6 @@ def generate_json(prompt, temperature=0.7, order=("gemini", "groq"), _retry=Fals
     if not errors:
         if _DEAD and not _retry:                    # every model was benched earlier this run: give them one more go
             _DEAD.clear()
-            return generate_json(prompt, temperature, order, _retry=True)
-        raise RuntimeError("No AI key configured (set GEMINI_API_KEY and/or GROQ_API_KEY)")
+            return _one_pass(prompt, temperature, order, _retry=True)
+        raise _NoKeys("No AI key configured (set GEMINI_API_KEY and/or GROQ_API_KEY)")
     raise RuntimeError("No AI provider produced a valid answer. " + " | ".join(errors[-4:]))
