@@ -36,7 +36,14 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: cartoon-bot/requirements.txt
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-noto-color-emoji
+      - name: Install ffmpeg + fonts (retries if the Ubuntu mirror hangs)
+        timeout-minutes: 15
+        run: |
+          for i in 1 2 3; do
+            sudo timeout 240 apt-get update -qq && sudo timeout 300 apt-get install -y -qq ffmpeg fonts-noto-core fonts-noto-color-emoji && exit 0
+            echo "apt attempt $i failed, retrying..."; sleep 15
+          done
+          exit 1
       - run: pip install -r cartoon-bot/requirements.txt
       - name: Keep schedules alive
         continue-on-error: true
