@@ -120,22 +120,21 @@ force_post** publishes the queued reel now.
 
 ## 🎙️ **Voice Configuration**
 
-**Current:** `hi-IN-MadhurNeural` (native Hindi male), deepened (`-6Hz`, `-3%` speed) + broadcast polish
-(bass boost, clarity lift, compression).
+The narration uses the most human-sounding provider available, with automatic fallback (one voice per reel):
 
-Why: an English voice reading Roman Hinglish ("samjho", "kaise") guesses the Hindi words and gets them
-wrong. Now the script is converted to **Devanagari for the voice only** (English tech terms stay English),
-so every Hindi word is pronounced like a native speaker. On-screen captions stay in Roman Hinglish and are
-time-aligned to the spoken words. If a line can't be converted, that line falls back to `en-IN-PrabhatNeural`.
-
-Tune it with GitHub Variables:
+| Provider | Sound | Cost | Turn on |
+|---|---|---|---|
+| **ElevenLabs** | most human | paid (commercial use needs a paid plan) | secret `ELEVENLABS_API_KEY` (+ optional variable `ELEVENLABS_VOICE_ID`) |
+| **Gemini TTS** (default) | natural, expressive, directed like an actor | free with `GEMINI_API_KEY` | on by default |
+| Edge (`hi-IN-MadhurNeural`) | clearly synthetic | free | automatic safety net |
 
 ```bash
-VOICE_PITCH=-6Hz     # deeper: -10Hz, -12Hz   (0Hz = natural)
-VOICE_RATE=-3%       # slower/heavier: -6%   faster: +3%
-VOICE_FX=true        # bass + compression "radio" polish
-VOICE_NAME=hi-IN-MadhurNeural
+GEMINI_VOICE=Charon              # Orus, Fenrir, Iapetus, Alnilam, Sadaltager ... (listen: Pre-flight check -> voice_samples)
+GEMINI_SPEAK_DEVANAGARI=false    # Hinglish: voice reads Roman text (false) or a Devanagari copy (true)
+TTS_PROVIDER=auto                # or force: elevenlabs | gemini | edge
 ```
+
+Captions always show the script's own words, time-aligned to the voice.
 
 ### **Language Modes** (NEW)
 
@@ -148,10 +147,31 @@ LANGUAGE_MODE=english_only   # Clear English (US voice)
 LANGUAGE_MODE=hindi_only     # Pure Hindi (Hindi voice)
 ```
 
+`english_only` switches everything: script, on-screen labels, captions, hashtags and the voice's accent direction.
+
 
 ⚠️ **Never use US/UK voices for Hinglish** - they butcher Hindi words!
 
 ---
+
+## 💰 **Monetization & Growth**
+
+- **YouTube Shorts cross-post** (YouTube shares Shorts ad revenue - the main money path in India):
+  1. Google Cloud console -> new project -> enable **YouTube Data API v3** -> OAuth consent screen (External,
+     publish it) -> Credentials -> **OAuth client ID (Desktop app)**.
+  2. On your computer: `python cartoon-bot/tools/youtube_auth.py CLIENT_ID CLIENT_SECRET` (saves the secrets).
+  3. ⚠️ Google keeps API uploads from an **unverified** project **private** until it passes the free
+     [YouTube API compliance audit](https://support.google.com/youtube/contact/yt_api_form). Apply once; until then
+     set variable `YT_PRIVACY=private` and publish manually, or keep it and wait for approval.
+- **Analytics + learning loop** (`engage.yml`, every 4 h): views/reach/likes/comments/shares/saves per reel; the
+  script writer learns from your best hooks. Needs token permission **`instagram_manage_insights`**.
+- **Auto-replies** to genuine comments in the viewer's language (spam/links/politics skipped, max 12 per run,
+  never twice). Needs **`instagram_manage_comments`**. Turn off with variable `AUTO_REPLY=false`.
+- **Weekly report** on Telegram every Sunday evening (or run *Grow channel -> force_report*).
+- **SEO captions**: searchable hook headline, save/share/comment prompts, 5 topic hashtags + brand tags.
+
+Instagram's own payouts (gifts, subscriptions, bonuses) need eligibility (followers, age, region); brand deals
+follow audience size, so consistency + shares/saves matter most.
 
 ## 🎨 **Animation Types**
 

@@ -124,7 +124,7 @@ def _direction(text, minimal=False):
 
 
 def _max_secs(text):
-    return 2.5 + 0.75 * len(text.split())          # generous; reading the notes aloud would blow way past this
+    return 2.0 + 0.5 * len(text.split())           # natural speech is ~0.35 s/word; reading the notes is ~3x longer
 
 
 def _gemini_one(text, path):
