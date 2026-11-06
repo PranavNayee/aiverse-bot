@@ -5,8 +5,8 @@ Guarantees:
   * never posts the same reel twice: storage claim-lock + a check of the account's latest posts
   * history is written only after a SUCCESSFUL post, so a failed/skipped day never burns a lesson number
 """
-import time, uuid, traceback
-import config as C, storage, instagram, notify, slots
+import re, time, uuid, traceback
+import config as C, storage, instagram, notify, slots, youtube
 from util import log
 
 MAX_ATTEMPTS = 3
@@ -34,7 +34,8 @@ def _record(p, media_id):
         "date": p.get("slot"), "slot": p.get("slot"), "type": p.get("type", "lesson"),
         "lesson_num": p.get("lesson_num"), "fact_idx": p.get("fact_idx"), "level": p.get("level"),
         "topic": p.get("topic", ""), "duration": p.get("duration"), "fact_check": p.get("fact_check"),
-        "media_id": media_id, "posted_ts": int(time.time()),
+        "media_id": media_id, "posted_ts": int(time.time()), "hook": p.get("hook", ""),
+        "youtube_id": p.get("youtube_id"),
     })
     storage.put_json("history.json", history[-400:])
 
@@ -82,9 +83,18 @@ def publish(p, force=False):
                  "\nGiving up for now. Fix the problem, then run 'Post approved reel' with force_post = true.")
         notify.text(f"❌ Instagram posting failed ({p['attempts']}/{MAX_ATTEMPTS}):\n{err[-1200:]}{extra}")
         raise
+    yt = ""
+    if youtube.enabled():
+        try:
+            p["youtube_id"] = youtube.upload(p["video_url"], p["caption"], p.get("headline"), p.get("topic"),
+                                             re.findall(r"#\w+", p["caption"]))
+            yt = f"\n▶️ YouTube Short: https://youtube.com/shorts/{p['youtube_id']}"
+        except Exception as e:
+            log("YouTube cross-post failed:", e)
+            yt = f"\n⚠️ YouTube upload failed: {str(e)[:300]}"
     _record(p, media_id)
     storage.delete("pending.json")
-    notify.text(f"✅ Posted to Instagram ({slots.fmt(time.time())}): {p.get('topic', '')}")
+    notify.text(f"✅ Posted to Instagram ({slots.fmt(time.time())}): {p.get('topic', '')}{yt}")
     return "posted"
 
 

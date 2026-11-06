@@ -83,3 +83,12 @@ def token_days_left():
     except Exception as e:
         log("Token expiry check failed:", e)
     return None
+
+
+def token_scopes():
+    tok = C.IG_ACCESS_TOKEN()
+    try:
+        j = requests.get(f"{GRAPH}/debug_token", params={"input_token": tok, "access_token": tok}, timeout=30).json()
+        return set((j.get("data") or {}).get("scopes") or [])
+    except Exception:
+        return set()

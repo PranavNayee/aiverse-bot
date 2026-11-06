@@ -1,0 +1,55 @@
+"""One-time YouTube authorisation. Run on YOUR computer:
+
+    python cartoon-bot/tools/youtube_auth.py CLIENT_ID CLIENT_SECRET
+
+Before that, in https://console.cloud.google.com : create a project -> enable "YouTube Data API v3" ->
+OAuth consent screen (External, add yourself as a test user, then "Publish app") -> Credentials ->
+Create OAuth client ID -> type "Desktop app". Use that client id/secret here.
+A browser opens; pick the YouTube channel to post to. The refresh token is then saved to the GitHub
+secrets (via the gh CLI) - it is never printed."""
+import http.server, json, subprocess, sys, threading, urllib.parse, urllib.request, webbrowser
+
+PORT = 8765
+SCOPE = "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly"
+
+
+def main():
+    if len(sys.argv) != 3:
+        sys.exit(__doc__)
+    cid, secret = sys.argv[1], sys.argv[2]
+    redirect = f"http://127.0.0.1:{PORT}"
+    got = {}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            got.update({k: v[0] for k, v in q.items()})
+            self.send_response(200); self.end_headers()
+            self.wfile.write(b"Done - you can close this tab and go back to the terminal.")
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.HTTPServer(("127.0.0.1", PORT), H)
+    threading.Thread(target=srv.handle_request, daemon=True).start()
+    url = "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode({
+        "client_id": cid, "redirect_uri": redirect, "response_type": "code", "scope": SCOPE,
+        "access_type": "offline", "prompt": "consent"})
+    print("Opening browser for Google sign-in...\nIf it does not open, visit:\n" + url)
+    webbrowser.open(url)
+    while "code" not in got and "error" not in got:
+        threading.Event().wait(0.5)
+    if "error" in got:
+        sys.exit("Authorisation refused: " + got["error"])
+    body = urllib.parse.urlencode({"code": got["code"], "client_id": cid, "client_secret": secret,
+                                   "redirect_uri": redirect, "grant_type": "authorization_code"}).encode()
+    tok = json.loads(urllib.request.urlopen("https://oauth2.googleapis.com/token", body).read())
+    if "refresh_token" not in tok:
+        sys.exit(f"No refresh token returned: {tok}")
+    for name, val in (("YT_CLIENT_ID", cid), ("YT_CLIENT_SECRET", secret), ("YT_REFRESH_TOKEN", tok["refresh_token"])):
+        subprocess.run(["gh", "secret", "set", name], input=val.encode(), check=True)
+    print("✅ Saved YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN to GitHub secrets. Shorts cross-posting is on.")
+
+
+if __name__ == "__main__":
+    main()

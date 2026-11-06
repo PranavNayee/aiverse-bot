@@ -1,6 +1,11 @@
 name: Pre-flight check
 on:
   workflow_dispatch:
+    inputs:
+      voice_samples:
+        description: "Also render voice samples (all voices, Hinglish + English) as a downloadable artifact"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths: ["cartoon-bot/**", ".github/workflows/**"]
@@ -50,5 +55,31 @@ jobs:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           REVIEW_MODE: ${{ vars.REVIEW_MODE || 'approve' }}
           POST_TIME: ${{ vars.POST_TIME || '08:00' }}
+          LANGUAGE_MODE: ${{ vars.LANGUAGE_MODE || 'hinglish' }}
+          TTS_PROVIDER: ${{ vars.TTS_PROVIDER || 'auto' }}
+          GEMINI_VOICE: ${{ vars.GEMINI_VOICE || 'Charon' }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
           TIMEZONE: ${{ vars.TIMEZONE || 'Asia/Kolkata' }}
           PYTHONPATH: cartoon-bot/src
+  voice-samples:
+    if: github.event_name == 'workflow_dispatch' && inputs.voice_samples
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: cartoon-bot/requirements.txt
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: pip install -r cartoon-bot/requirements.txt
+      - run: python cartoon-bot/tools/voice_samples.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PYTHONPATH: cartoon-bot/src
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voice-samples
+          path: test_work/voices

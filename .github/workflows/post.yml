@@ -42,4 +42,9 @@ jobs:
           POST_TIME: ${{ vars.POST_TIME || '08:00' }}
           TIMEZONE: ${{ vars.TIMEZONE || 'Asia/Kolkata' }}
           FORCE_POST: ${{ inputs.force_post || 'false' }}
+          LANGUAGE_MODE: ${{ vars.LANGUAGE_MODE || 'hinglish' }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_PRIVACY: ${{ vars.YT_PRIVACY || 'public' }}
           PYTHONPATH: cartoon-bot/src

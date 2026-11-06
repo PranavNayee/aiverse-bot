@@ -40,7 +40,7 @@ jobs:
       - run: pip install -r cartoon-bot/requirements.txt
       - name: Keep schedules alive
         continue-on-error: true
-        run: gh workflow enable daily.yml && gh workflow enable post.yml
+        run: gh workflow enable daily.yml && gh workflow enable post.yml && gh workflow enable engage.yml
         env:
           GH_TOKEN: ${{ github.token }}
       - run: python cartoon-bot/src/lesson_main.py
@@ -65,6 +65,15 @@ jobs:
           VOICE_PITCH: ${{ vars.VOICE_PITCH || '-6Hz' }}
           VOICE_RATE: ${{ vars.VOICE_RATE || '-3%' }}
           VOICE_FX: ${{ vars.VOICE_FX || 'true' }}
+          TTS_PROVIDER: ${{ vars.TTS_PROVIDER || 'auto' }}
+          GEMINI_VOICE: ${{ vars.GEMINI_VOICE || 'Charon' }}
+          GEMINI_SPEAK_DEVANAGARI: ${{ vars.GEMINI_SPEAK_DEVANAGARI || 'false' }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          SERIES_NAME: ${{ vars.SERIES_NAME || 'AI Seekho' }}
           POST_NOW: ${{ inputs.post_now || 'false' }}
           FORCE_NEW: ${{ inputs.force_new || 'false' }}
           PYTHONPATH: cartoon-bot/src

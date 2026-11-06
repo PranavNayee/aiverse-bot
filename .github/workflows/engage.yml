@@ -1,0 +1,46 @@
+name: Grow channel
+# Every 4 h: refresh reel stats (feeds the learning loop), reply to genuine comments,
+# and on Sunday evening send the weekly Telegram report.
+on:
+  schedule:
+    - cron: "37 1,5,9,13,17 * * *"   # 07:07, 11:07, 15:07, 19:07, 23:07 IST
+  workflow_dispatch:
+    inputs:
+      force_report:
+        description: "Send the weekly report now"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: reel-engage
+  cancel-in-progress: false
+jobs:
+  grow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: cartoon-bot/requirements.txt
+      - run: pip install requests
+      - run: python cartoon-bot/src/growth.py
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          LANGUAGE_MODE: ${{ vars.LANGUAGE_MODE || 'hinglish' }}
+          SERIES_NAME: ${{ vars.SERIES_NAME || 'AI Seekho' }}
+          AUTO_REPLY: ${{ vars.AUTO_REPLY || 'true' }}
+          TIMEZONE: ${{ vars.TIMEZONE || 'Asia/Kolkata' }}
+          FORCE_REPORT: ${{ inputs.force_report || 'false' }}
+          PYTHONPATH: cartoon-bot/src

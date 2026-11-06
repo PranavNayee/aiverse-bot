@@ -2,7 +2,7 @@
 import datetime, os, shutil, sys, time
 from util import log, retry
 import config as C
-import syllabus, lesson_script, edu_render, voice, storage, notify, instagram, soundtrack, slots, publisher
+import syllabus, lesson_script, edu_render, storage, notify, instagram, soundtrack, slots, publisher, tts
 
 def _optimize_scene_pacing(scenes):
     """ViMax-inspired pacing: add micro-pauses for complex scenes, speed up simple ones"""
@@ -26,101 +26,42 @@ def _optimize_scene_pacing(scenes):
     
     return scenes
 
+EN = C.LANGUAGE_MODE == "english_only"
+TXT = {
+    "save": "Save this for later and share it with a friend who is learning AI 🔖" if EN else
+            "Save karo baad ke liye aur us dost ko bhejo jo AI seekh raha hai 🔖",
+    "ask": "Comment your question below 👇 I reply to every one!" if EN else
+           "Koi doubt? Comment karo 👇 har sawaal ka jawab milega!",
+    "follow": "Follow @{h} for a new AI lesson every day 🔔" if EN else "Roz naya AI lesson - follow karo 🔔",
+    "default": "AI explained simply, in 60 seconds." if EN else "AI concepts ko simple Hinglish mein samjho!",
+    "terms": "Key terms" if EN else "Key terms",
+}
+BASE_TAGS = ["#aiseekho", "#learnai", "#artificialintelligence"] + (["#aiexplained"] if EN else ["#aiinhindi"])
+
+
+def _caption(headline, title_line, summary, terms, tags):
+    tags = list(dict.fromkeys([t for t in tags if t] + BASE_TAGS))[:8]   # Instagram favours few, relevant tags
+    parts = [headline, "", title_line, "", summary or TXT["default"]]
+    if terms:
+        parts += ["", f"💡 {TXT['terms']}: " + " · ".join(terms[:3])]
+    parts += ["", TXT["save"], TXT["ask"], TXT["follow"].format(h=C.SERIES_NAME.replace(' ', '').lower()), "",
+              " ".join(tags)]
+    cap = "\n".join(parts)
+    log(f"Caption: {len(cap)} chars")
+    return cap[:2150]
+
+
 def build_lesson_caption(script, lesson_num, level, lesson_title):
-    """Build optimized caption for lesson"""
-    summary = script.get("caption_summary", "")
-    key_terms = script.get("key_terms", [])
-    
-    # Build caption
-    caption_parts = [
-        f"📚 Lesson #{lesson_num} - {level.title()}",
-        "",
-        f"✨ {lesson_title}",
-        "",
-        summary if summary else "AI concepts ko simple Hinglish mein samjho!",
-        "",
-        "💡 Key terms:",
-        " • " + "\n • ".join(key_terms[:3]) if key_terms else " • AI, ML, Data",
-        "",
-        "Comment mein batao: Kya naya seekha? 💬",
-        "",
-        "Roz naya lesson! Follow karo 🔔",
-        "",
-        f"🎓 AI Seekho - Hinglish AI Education"
-    ]
-    
-    caption = "\n".join(caption_parts)
-    
-    # Add hashtags
-    edu_hashtags = [
-        "#aiseekho", "#ailearning", "#hinglish", "#aiexplained",
-        "#machinelearning", "#deeplearning", "#datascience",
-        "#aiinhindi", "#techeducation", "#learnai", "#coding",
-        "#python", "#artificialintelligence", "#techinhindi",
-        "#educationreels"
-    ]
-    
-    caption += "\n\n" + " ".join(edu_hashtags)
-    
-    log(f"Lesson caption: {len(caption)} chars")
-    return caption
+    headline = script.get("headline") or f"🤖 {lesson_title}"
+    return _caption(headline, f"📚 Lesson #{lesson_num} · {level.title()} · {lesson_title}",
+                    script.get("caption_summary", ""), script.get("key_terms", []), script.get("hashtags", []))
+
 
 def build_fun_fact_caption(script, topic):
-    """Build caption for weekend fun fact"""
-    summary = script.get("caption_summary", "")
-    
-    caption_parts = [
-        "🎉 Weekend Special - AI Fun Fact!",
-        "",
-        f"✨ {topic}",
-        "",
-        summary,
-        "",
-        "Aur bhi interesting facts ke liye follow karo! 🔔",
-        "",
-        "🎓 AI Seekho"
-    ]
-    
-    caption = "\n".join([p for p in caption_parts if p])
-    
-    # Fun fact hashtags
-    fun_hashtags = [
-        "#aifacts", "#techfacts", "#didyouknow", "#aiinhindi",
-        "#hinglish", "#interesting", "#viral", "#trending",
-        "#aiseekho", "#techeducation", "#learnai",
-        "#artificialintelligence", "#technology", "#innovation"
-    ]
-    
-    caption += "\n\n" + " ".join(fun_hashtags)
-    
-    return caption
-
-@retry(tries=3, delay=5)
-def generate_voice_for_scene(scene, scene_idx):
-    """Narration for one scene -> (mp3 path, seconds, word timings)."""
-    audio_path = f"work/audio_{scene_idx}.mp3"
-    speech = scene.get("speech")
-    if speech:                                   # native Hindi voice reads the Devanagari copy
-        spoken = voice.synth(speech, C.DEFAULT_LESSON_VOICE, audio_path)
-    else:                                        # Roman text: use the Indian-English voice (reads Roman best)
-        spk = "hinglish_roman" if C.SPEAK_DEVANAGARI else C.DEFAULT_LESSON_VOICE
-        spoken = voice.synth(scene["narration"], spk, audio_path)
-    duration = voice.duration(audio_path)
-    words = voice.align(scene["narration"], spoken, duration)   # captions show the Roman words
-    log(f"  Scene {scene_idx}: voice {duration:.1f}s - {(speech or scene['narration'])[:50]}...")
-    return audio_path, duration, words
-
-
-def generate_all_voices_parallel(scenes):
-    """All scene voices at once (5-7x faster than one by one)."""
-    import concurrent.futures
-    log(f"🎙️ Generating {len(scenes)} voice tracks in parallel...")
-    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
-        futs = [ex.submit(generate_voice_for_scene, sc, i) for i, sc in enumerate(scenes)]
-        errors = [f"scene {i}: {f.exception()}" for i, f in enumerate(futs) if f.exception()]
-        if errors:
-            raise RuntimeError("Voice generation failed: " + "; ".join(errors))
-        return [f.result() for f in futs]
+    headline = script.get("headline") or f"🤯 {topic}"
+    label = "Weekend AI Fun Fact" if EN else "Weekend Special - AI Fun Fact"
+    return _caption(headline, f"🎉 {label}", script.get("caption_summary", ""), script.get("key_terms", []),
+                    script.get("hashtags", []) + ["#aifacts", "#didyouknow"])
 
 
 def generate_lesson_video(lesson, lesson_num, script):
@@ -130,11 +71,11 @@ def generate_lesson_video(lesson, lesson_num, script):
     shutil.rmtree("work", ignore_errors=True)
     os.makedirs("work")
 
-    if C.SPEAK_DEVANAGARI:
+    if C.LANGUAGE_MODE == "hinglish" and tts.needs_devanagari():
         log("🗣️ Preparing Devanagari speech for proper Hindi pronunciation...")
         for sc, sp in zip(script["scenes"], lesson_script.to_speech([s["narration"] for s in script["scenes"]])):
             sc["speech"] = sp
-    voices = generate_all_voices_parallel(script["scenes"])
+    voices = tts.speak_scenes(script["scenes"])
     scenes = _optimize_scene_pacing([{"kind": s["kind"], "visual": s["visual"], "dur": d}
                                      for s, (_, d, _) in zip(script["scenes"], voices)])
     t, words = 0.0, []
@@ -147,7 +88,8 @@ def generate_lesson_video(lesson, lesson_num, script):
     log("🎵 Building soundtrack (voice + music bed + lip-sync levels)...")
     levels = soundtrack.build([v[0] for v in voices], [s["start"] for s in scenes], total, "work/mix.wav",
                               edu_render.FPS, music=C.MUSIC, music_dir=C.MUSIC_DIR,
-                              voice_af=C.VOICE_FILTER if C.VOICE_FX else None)
+                              voice_af=(C.VOICE_FILTER if tts.LAST == "edge" else C.VOICE_FILTER_LIGHT) if C.VOICE_FX else None,
+                              sfx_at=[s["start"] for s in scenes[1:]])
 
     log(f"🖌️ Animating {len(scenes)} scenes, {total:.1f}s (mascot={C.MASCOT})...")
     final_video, cover = "work/final.mp4", "work/cover.jpg"
@@ -170,7 +112,8 @@ def build_content(history, slot):
     lesson, num, nxt = syllabus.get_next_lesson(history)
     script = lesson_script.generate_lesson_script(lesson, num, nxt)
     return dict(script=script, lesson=lesson, lesson_num=num, fact_idx=None, type="lesson", level=lesson["level"],
-                topic=lesson["title"], caption=build_lesson_caption(script, num, lesson["level"], lesson["title"]))
+                topic=lesson["title_en"] if EN else lesson["title"],
+                caption=build_lesson_caption(script, num, lesson["level"], lesson["title_en"] if EN else lesson["title"]))
 
 
 def _token_warning():
@@ -210,6 +153,13 @@ def run_lesson_generation():
         log(f"Replacing an old unposted reel for slot {pending.get('slot')}.")
         notify.text(f"ℹ️ The reel for {pending.get('slot')} was never posted; replacing it with the {key} reel.")
 
+    try:
+        import growth
+        lesson_script.WINNERS = growth.winners()
+        if lesson_script.WINNERS:
+            log("🧠 Learning from best hooks:", lesson_script.WINNERS[:200])
+    except Exception as e:
+        log("Learning loop skipped:", e)
     c = build_content(history, slot)
     final_video, duration, cover = generate_lesson_video(c["lesson"], c["lesson_num"], c["script"])
 
@@ -227,6 +177,7 @@ def run_lesson_generation():
         "slot": key, "post_at": int(post_at), "video_url": url, "cover_url": cover_url, "caption": c["caption"],
         "topic": c["topic"], "type": c["type"], "lesson_num": c["lesson_num"], "fact_idx": c["fact_idx"],
         "level": c["level"], "duration": round(duration, 1), "fact_check": c["script"].get("fact_check", "pass"),
+        "hook": c["script"]["scenes"][0]["narration"], "headline": c["script"].get("headline", ""),
         "created_ts": int(time.time()), "attempts": 0, "status": "queued",
     })
     for prefix, keep in (("lessons", 30), ("covers", 30)):

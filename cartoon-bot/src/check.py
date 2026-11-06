@@ -66,11 +66,12 @@ def c_storage():
     return "Supabase read/write + public URL OK" + q
 
 def c_voice():
-    import voice
-    p = os.path.join(tempfile.mkdtemp(), "t.mp3")
-    text = "नमस्ते दोस्तों, आज हम AI सीखेंगे।" if C.SPEAK_DEVANAGARI else "Namaste doston, aaj hum AI seekhenge."
-    words = voice.synth(text, C.DEFAULT_LESSON_VOICE, p)
-    return f"voice {C.VOICE_NAME} {C.VOICE_PITCH} OK ({voice.duration(p):.1f}s, {len(words)} timed words)"
+    import tts
+    os.makedirs("work", exist_ok=True)
+    sc = {"narration": "Hello doston, aaj hum AI seekhenge." if C.LANGUAGE_MODE != "english_only" else
+          "Hello friends, today we learn AI.", "speech": "नमस्ते दोस्तों, आज हम AI सीखेंगे।"}
+    (p, d, words), = tts.speak_scenes([sc])
+    return f"voice OK via {tts.LAST} ({d:.1f}s, {len(words)} timed words); provider order {tts.order()}"
 
 def c_render():
     import edu_render, soundtrack
@@ -91,7 +92,12 @@ def c_ig():
     left = f", token expires in {days:.0f} days" if days is not None else ""
     if days is not None and days < 7:
         raise RuntimeError(f"token for @{user} expires in {days:.1f} days - renew it now (GET_NEW_TOKEN.md)")
-    return f"Instagram token OK for @{user}{left}"
+    scopes = instagram.token_scopes()
+    need = {"instagram_content_publish": "posting", "instagram_manage_insights": "analytics + learning",
+            "instagram_manage_comments": "auto-replies"}
+    miss = [f"{k} ({v})" for k, v in need.items() if scopes and k not in scopes]
+    extra = f"; MISSING permissions: {', '.join(miss)} - regenerate the token with them (GET_NEW_TOKEN.md)" if miss else ""
+    return f"Instagram token OK for @{user}{left}{extra}"
 
 if __name__ == "__main__":
     check("Secrets", c_secrets); check("Schedule", c_schedule); check("FFmpeg", c_ffmpeg)

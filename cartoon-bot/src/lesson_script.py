@@ -24,7 +24,7 @@ CORE FACTS (the ONLY facts you may state as true): {facts}
 Everyday Indian analogy to use: {analogy}
 Keywords: {keywords}
 Next lesson (for the teaser): {next_title}
-{feedback}
+{feedback}{winners}
 LANGUAGE (critical): {language_instruction}
 ACCURACY (critical): Do not invent statistics, dates, names, prices or claims beyond the CORE FACTS. If the analogy is imperfect, say "roughly" or "approximately". Never mention politics or religion.
 
@@ -36,10 +36,12 @@ Visuals must show THIS lesson's real content (real step names, real layer sizes,
 
 Return ONLY JSON:
 {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {{...}}}}, ...],
- "caption_summary": "2 short Hinglish lines",
+ "caption_summary": "2 short lines, same language as the narration",
+ "headline": "Instagram caption first line: curiosity hook with the main search keyword, max 70 chars, 1 emoji",
+ "hashtags": ["5 niche hashtags for this exact topic, lowercase, with #"],
  "key_terms": ["term1", "term2", "term3"]}}"""
 
-FACT_PROMPT = """You are a strict senior ML engineer fact-checking a short Hinglish lesson for beginners.
+FACT_PROMPT = """You are a strict senior ML engineer fact-checking a short lesson for beginners.
 
 REFERENCE FACTS: {facts}
 LESSON TOPIC: {title_en}
@@ -51,7 +53,8 @@ Check: (1) every claim is correct and consistent with the reference facts and st
 Verdict: "pass" = fine; "minor" = small wording issues only; "major" = any factual error, misleading claim, wrong formula/code, or off-topic.
 Return ONLY JSON: {{"verdict": "pass|minor|major", "issues": ["short description of each problem and how to fix it"]}}"""
 
-FUN_PROMPT = """You write a 35-45 second weekend "AI fun fact" Instagram Reel in HINGLISH (Roman script) for the channel "AI Seekho".
+FUN_PROMPT = """You write a 35-45 second weekend "AI fun fact" Instagram Reel in {language_style} for the channel "AI Seekho".
+LANGUAGE (critical): {language_instruction}
 TOPIC: {title}
 CORE FACT (the ONLY fact you may state): {facts}
 {feedback}
@@ -59,7 +62,7 @@ Rules: friendly, surprising, accurate. Do not add facts, numbers or dates beyond
 
 {schema}
 
-Return ONLY JSON: {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {{...}}}}, ...], "caption_summary": "2 short Hinglish lines", "key_terms": ["t1","t2","t3"]}}"""
+Return ONLY JSON: {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {{...}}}}, ...], "caption_summary": "2 short lines, same language as the narration", "headline": "caption first line: curiosity hook with the topic keyword, max 70 chars, 1 emoji", "hashtags": ["5 niche hashtags with #"], "key_terms": ["t1","t2","t3"]}}"""
 
 KINDS = {"hook", "bullets", "flow", "compare", "network", "code", "stat", "formula", "takeaway", "cta"}
 
@@ -86,7 +89,7 @@ def clean_scene(i, sc):
     if not (5 <= words <= 38):
         raise ValueError(f"scene {i}: narration has {words} words (need 8-30)")
     if _roman_ratio(nar) < 0.9:
-        raise ValueError(f"scene {i}: narration must be Roman-script Hinglish, no Devanagari")
+        raise ValueError(f"scene {i}: narration must be in Roman script, no Devanagari")
     v = sc.get("visual") or {}
     try:
         if kind == "hook":
@@ -139,7 +142,9 @@ def validate(raw, min_scenes=5, max_scenes=10):
     if not (80 <= total <= 210):
         raise ValueError(f"total narration is {total} words (need about 110-170)")
     terms = [_s(t, 28) for t in (raw.get("key_terms") or []) if _s(t, 28)][:3]
-    return {"scenes": scenes, "caption_summary": _s(raw.get("caption_summary"), 260), "key_terms": terms}
+    tags = [("#" + re.sub(r"[^\w]", "", str(t)).lower()) for t in (raw.get("hashtags") or []) if re.sub(r"[^\w]", "", str(t))][:5]
+    return {"scenes": scenes, "caption_summary": _s(raw.get("caption_summary"), 260), "key_terms": terms,
+            "headline": _s(raw.get("headline"), 90), "hashtags": tags}
 
 def _script_text(script):
     return "\n".join(f"[{s['kind']}] SAY: {s['narration']} | SHOW: {s['visual']}" for s in script["scenes"])
@@ -182,6 +187,10 @@ def _check_visual_consistency(script):
     
     return "pass"
 
+_SERIOUS = re.compile(r"incorrect|inaccurate|wrong|not exist|doesn't exist|invalid|misleading|error in|non-standard|"
+                      r"syntax|import|module|undefined|false|mistake", re.I)
+WINNERS = ""     # filled by lesson_main from analytics: hooks that performed best on this channel
+
 def _make(prompt_fn, facts, title_en, min_scenes, max_scenes, attempts=4):
     """Multi-attempt generation with A/B testing on first scene (ViMax-inspired)"""
     feedback = ""
@@ -220,6 +229,10 @@ def _make(prompt_fn, facts, title_en, min_scenes, max_scenes, attempts=4):
         verdict, issues = fact_check(script, facts, title_en)
         log(f"  attempt {n}: fact-check = {verdict} {issues}")
         
+        serious = [i for i in issues if _SERIOUS.search(i)]
+        if verdict == "minor" and serious and n < attempts:     # wrong code/formula/claims: rewrite, don't post
+            log("  minor issues are real errors - rewriting")
+            verdict = "major"
         if verdict in ("pass", "minor"):
             script["fact_check"] = verdict
             return script
@@ -266,8 +279,7 @@ Return ONLY JSON: {{"choice": "A"|"B", "reason": "one sentence why"}}"""
         log("  A/B selection failed, using script A")
         return script_a
 
-def generate_lesson_script(lesson, num, next_lesson):
-    # Determine language style and instructions based on config
+def _language():
     if C.LANGUAGE_MODE == "english_only":
         language_style = "CLEAR ENGLISH"
         language_instruction = "Use clear, simple English. Friendly tone like explaining to a friend. Avoid jargon. No emojis or symbols like = * % in 'narration' (it is read aloud)."
@@ -277,18 +289,30 @@ def generate_lesson_script(lesson, num, next_lesson):
     else:  # hinglish (default)
         language_style = "HINGLISH"
         language_instruction = "Hinglish in ROMAN script only (no Devanagari). Hindi words like hai, kaise, kyun, matlab, samjho; technical terms in English (model, data, neural network). Friendly, like explaining to a friend. No emojis or symbols like = * % in 'narration' (it is read aloud), write numbers/terms as words where needed."
+    return language_style, language_instruction
+
+def _winners():
+    return f"\nHOOKS THAT PERFORMED BEST ON THIS CHANNEL (learn their style, do not copy): {WINNERS}\n" if WINNERS else ""
+
+def generate_lesson_script(lesson, num, next_lesson):
+    language_style, language_instruction = _language()
+    en = C.LANGUAGE_MODE == "english_only"
     
     def prompt(fb):
-        return LESSON_PROMPT.format(num=num, level=lesson["level"], title=lesson["title"], title_en=lesson["title_en"],
-                                    facts=lesson["facts"], analogy=lesson["analogy"], keywords=", ".join(lesson["keywords"]),
-                                    next_title=next_lesson["title"], feedback=fb, schema=SCHEMA,
+        return LESSON_PROMPT.format(num=num, level=lesson["level"], title=lesson["title_en"] if en else lesson["title"],
+                                    title_en=lesson["title_en"], facts=lesson["facts"],
+                                    analogy=lesson["analogy"] + (" (adapt it into English)" if en else ""),
+                                    keywords=", ".join(lesson["keywords"]), winners=_winners(),
+                                    next_title=next_lesson["title_en"] if en else next_lesson["title"], feedback=fb, schema=SCHEMA,
                                     language_style=language_style, language_instruction=language_instruction)
     log(f"Writing lesson #{num}: {lesson['title_en']} ({language_style})")
     return _make(prompt, lesson["facts"], lesson["title_en"], 6, 10)
 
 def generate_fun_fact_script(fact):
     def prompt(fb):
-        return FUN_PROMPT.format(title=fact["title"], facts=fact["facts"], feedback=fb, schema=SCHEMA)
+        style, instr = _language()
+        return FUN_PROMPT.format(title=fact["title"], facts=fact["facts"], feedback=fb + _winners(), schema=SCHEMA,
+                                 language_style=style, language_instruction=instr)
     log(f"Writing fun fact: {fact['title']}")
     return _make(prompt, fact["facts"], fact["title"], 4, 8)
 

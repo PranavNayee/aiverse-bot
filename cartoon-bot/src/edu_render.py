@@ -16,6 +16,9 @@ TEXT, MUTED, DARK = (244, 246, 255), (156, 166, 196), (12, 14, 34)
 LEVEL_COLOR = {"basics": (45, 212, 191), "intermediate": (251, 191, 36), "advanced": (244, 114, 182),
                "weekend": (167, 139, 250)}
 INDIGO, GREEN, RED = (129, 140, 248), (74, 222, 128), (251, 113, 133)
+EN = os.environ.get("LANGUAGE_MODE", "hinglish") == "english_only"
+UI = {"remember": "REMEMBER" if EN else "YAAD RAKHO", "next": "NEXT LESSON",
+      "daily": "A new AI lesson every day" if EN else "Roz ek naya AI lesson"}
 TOP, BOTTOM = 270, 1290            # safe content band (captions live below, phone UI covers the very top/bottom)
 
 # ---------------------------------------------------------------- helpers
@@ -412,7 +415,7 @@ def s_takeaway(frame, d, v, t, dur, ctx):
     p = ease_back(prog(t, .1, .6))
     card(d, (70, 420, W - 70, 1010), 50, rgba(acc, .17), rgba(acc, clamp(p)), 4)
     card(d, (110, 380, 520, 470), 40, rgba(acc, clamp(p)))
-    ctext(d, 315, 425, "YAAD RAKHO", font(44), rgba(DARK, clamp(p)))
+    ctext(d, 315, 425, UI["remember"], font(44), rgba(DARK, clamp(p)))
     r = 52 * p
     d.ellipse((540 - r, 590 - r, 540 + r, 590 + r), fill=rgba(GREEN, clamp(p)))
     if p > .5:
@@ -434,7 +437,7 @@ def s_takeaway(frame, d, v, t, dur, ctx):
 
 def s_cta(frame, d, v, t, dur, ctx):
     acc = ctx["accent"]
-    ctext(d, 540, 450, "NEXT LESSON", font(46), rgba(acc, ease_out(prog(t, 0, .4))))
+    ctext(d, 540, 450, UI["next"], font(46), rgba(acc, ease_out(prog(t, 0, .4))))
     f, lines, size = fit(d, v["text"], 900, 380, 84, 48)
     for i, ln in enumerate(lines):
         ctext(d, 540, 600 + i * size * 1.2, ln, f, rgba(TEXT, ease_out(prog(t, .3 + .15 * i, .5))))
@@ -445,7 +448,7 @@ def s_cta(frame, d, v, t, dur, ctx):
         card(d, (540 - w / 2, 980 - h / 2, 540 + w / 2, 980 + h / 2), 65, rgba(acc))
         ctext(d, 560, 980, "FOLLOW", font(int(58 * pb) + 1), rgba(DARK))
         put(frame, emoji_img("🔔", 74), 540 - w / 2 + 70, 980, pb * (1 + 0.1 * math.sin(TAU * 3 * t)))
-    ctext(d, 540, 1160, "Roz ek naya AI lesson", font(46, False), rgba(MUTED, ease_out(prog(t, 1.3, .6))))
+    ctext(d, 540, 1160, UI["daily"], font(46, False), rgba(MUTED, ease_out(prog(t, 1.3, .6))))
 
 DRAWERS = {"hook": s_hook, "bullets": s_bullets, "flow": s_flow, "compare": s_compare, "network": s_network,
            "code": s_code, "stat": s_stat, "formula": s_formula, "takeaway": s_takeaway, "cta": s_cta}

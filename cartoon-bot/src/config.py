@@ -72,4 +72,13 @@ def get_lesson_voice():
     return "hinglish"
 
 DEFAULT_LESSON_VOICE = get_lesson_voice()
-SPEAK_DEVANAGARI = LANGUAGE_MODE == "hinglish" and VOICE_NAME.startswith("hi-")
+SPEAK_DEVANAGARI = LANGUAGE_MODE == "hinglish" and VOICE_NAME.startswith("hi-")   # edge fallback only
+
+# ---------------- Human-like voice providers (see tts.py) ----------------
+# auto = ElevenLabs if ELEVENLABS_API_KEY is set, else Gemini TTS (free with GEMINI_API_KEY), else Edge.
+TTS_PROVIDER     = (env("TTS_PROVIDER", "auto") or "auto").strip().lower()
+GEMINI_VOICE     = env("GEMINI_VOICE", "Charon") or "Charon"          # Charon / Orus / Fenrir / Iapetus / Puck...
+GEMINI_SPEAK_DEVANAGARI = flag("GEMINI_SPEAK_DEVANAGARI", "false")   # Hinglish: read Roman text (false) or Devanagari copy
+ELEVENLABS_MODEL = env("ELEVENLABS_MODEL", "eleven_multilingual_v2") or "eleven_multilingual_v2"
+# human voices need only light polish; the heavy chain is for the Edge voice
+VOICE_FILTER_LIGHT = "highpass=f=60,acompressor=threshold=-18dB:ratio=2:attack=8:release=120:makeup=2,alimiter=limit=0.95"

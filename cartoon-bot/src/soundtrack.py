@@ -91,7 +91,21 @@ def _music(seconds, music_dir):
     return synth_bed(seconds)
 
 
-def build(voice_clips, starts, total, out_wav, fps, music=True, music_dir=None, voice_af=None):
+def whoosh(sr=SR, dur=0.42, seed=3):
+    """Soft transition whoosh: band-limited noise with a quick swell (generated, royalty-free)."""
+    rng = np.random.default_rng(seed)
+    n = int(dur * sr)
+    spec = np.fft.rfft(rng.standard_normal(n).astype(np.float32))
+    f = np.fft.rfftfreq(n, 1 / sr)
+    spec *= np.exp(-((np.log(f + 1) - np.log(1400)) ** 2) / 0.9)          # soft band around 1.4 kHz
+    x = np.fft.irfft(spec, n).astype(np.float32)
+    t = np.linspace(0, 1, n, dtype=np.float32)
+    env = (t ** 1.6) * np.exp(-((t - 0.62) ** 2) / 0.05) / 0.62 ** 1.6
+    x *= env
+    return 0.11 * x / (np.max(np.abs(x)) + 1e-6)
+
+
+def build(voice_clips, starts, total, out_wav, fps, music=True, music_dir=None, voice_af=None, sfx_at=()):
     """voice_clips: audio paths; starts: start second of each clip; total: reel length.
     Returns per-frame voice level array (0..1) for lip-sync."""
     n = int(round(total * SR))
@@ -110,6 +124,12 @@ def build(voice_clips, starts, total, out_wav, fps, music=True, music_dir=None, 
         env = env / (np.percentile(env[env > 1e-4], 90) + 1e-6) if np.any(env > 1e-4) else env
         duck = 1.0 - 0.65 * np.clip(env, 0, 1)                            # music dips while the bot talks
         mix += bed * duck
+    if sfx_at:
+        w = whoosh()
+        for st in sfx_at:                                                 # lands just before each scene cut
+            a = int(max(0.0, st - 0.3) * SR)
+            b = min(n, a + len(w))
+            mix[a:b] += w[:b - a]
     peak = float(np.max(np.abs(mix))) or 1.0
     if peak > 0.98:
         mix *= 0.98 / peak
