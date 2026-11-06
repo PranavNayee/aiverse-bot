@@ -64,3 +64,34 @@ def duration(path):
     r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                         "-of", "default=nw=1:nk=1", path], capture_output=True, text=True, check=True)
     return float(r.stdout.strip())
+
+
+def align(caption_text, tts_words, dur):
+    """Map the on-screen (Roman) words onto the spoken (Devanagari) word timings.
+    Same word count -> 1:1; otherwise each caption word takes the time at the same relative position."""
+    cap = caption_text.split()
+    if not cap:
+        return []
+    if not tts_words:
+        return estimate_words(caption_text, dur)
+    if len(cap) == len(tts_words):
+        return [(s, e, w) for (s, e, _), w in zip(tts_words, cap)]
+    # piecewise-linear timeline over the spoken words, indexed by fraction of text length
+    spoken = [len(w[2]) + 1 for w in tts_words]
+    tot_s = float(sum(spoken))
+    marks, acc = [], 0.0
+    for (s, e, _), k in zip(tts_words, spoken):
+        marks.append((acc / tot_s, s, e, (acc + k) / tot_s)); acc += k
+
+    def time_at(frac):
+        for f0, s, e, f1 in marks:
+            if frac <= f1:
+                return s + (e - s) * ((frac - f0) / max(f1 - f0, 1e-6))
+        return marks[-1][2]
+    lens = [len(w) + 1 for w in cap]
+    tot_c = float(sum(lens))
+    out, acc = [], 0.0
+    for w, k in zip(cap, lens):
+        a, b = acc / tot_c, (acc + k) / tot_c
+        out.append((time_at(a), max(time_at(a) + 0.05, time_at(b) - 0.02), w)); acc += k
+    return out

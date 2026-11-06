@@ -120,10 +120,22 @@ force_post** publishes the queued reel now.
 
 ## 🎙️ **Voice Configuration**
 
-**Current:** `en-IN-PrabhatNeural` (Indian English Male)
-- Pronounces Hindi naturally
-- Reads Hinglish perfectly
-- Deep, clear voice
+**Current:** `hi-IN-MadhurNeural` (native Hindi male), deepened (`-6Hz`, `-3%` speed) + broadcast polish
+(bass boost, clarity lift, compression).
+
+Why: an English voice reading Roman Hinglish ("samjho", "kaise") guesses the Hindi words and gets them
+wrong. Now the script is converted to **Devanagari for the voice only** (English tech terms stay English),
+so every Hindi word is pronounced like a native speaker. On-screen captions stay in Roman Hinglish and are
+time-aligned to the spoken words. If a line can't be converted, that line falls back to `en-IN-PrabhatNeural`.
+
+Tune it with GitHub Variables:
+
+```bash
+VOICE_PITCH=-6Hz     # deeper: -10Hz, -12Hz   (0Hz = natural)
+VOICE_RATE=-3%       # slower/heavier: -6%   faster: +3%
+VOICE_FX=true        # bass + compression "radio" polish
+VOICE_NAME=hi-IN-MadhurNeural
+```
 
 ### **Language Modes** (NEW)
 
@@ -136,9 +148,6 @@ LANGUAGE_MODE=english_only   # Clear English (US voice)
 LANGUAGE_MODE=hindi_only     # Pure Hindi (Hindi voice)
 ```
 
-**Alternative voices available in `config.py`:**
-- `hi-IN-MadhurNeural` - Pure Hindi male
-- `en-IN-NeerjaNeural` - Indian English female
 
 ⚠️ **Never use US/UK voices for Hinglish** - they butcher Hindi words!
 

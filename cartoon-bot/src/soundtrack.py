@@ -9,9 +9,10 @@ from util import log
 SR = 44100
 
 
-def load_pcm(path, sr=SR):
-    """Decode any audio file to mono float32 in [-1, 1]."""
-    r = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-f", "s16le", "-ac", "1", "-ar", str(sr), "-"],
+def load_pcm(path, sr=SR, af=None):
+    """Decode any audio file to mono float32 in [-1, 1] (optionally through an ffmpeg filter chain)."""
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", path] + (["-af", af] if af else []) +
+                       ["-f", "s16le", "-ac", "1", "-ar", str(sr), "-"],
                        capture_output=True, check=True)
     return np.frombuffer(r.stdout, dtype=np.int16).astype(np.float32) / 32768.0
 
@@ -90,13 +91,13 @@ def _music(seconds, music_dir):
     return synth_bed(seconds)
 
 
-def build(voice_clips, starts, total, out_wav, fps, music=True, music_dir=None):
+def build(voice_clips, starts, total, out_wav, fps, music=True, music_dir=None, voice_af=None):
     """voice_clips: audio paths; starts: start second of each clip; total: reel length.
     Returns per-frame voice level array (0..1) for lip-sync."""
     n = int(round(total * SR))
     voice = np.zeros(n, dtype=np.float32)
     for path, st in zip(voice_clips, starts):
-        x = load_pcm(path)
+        x = load_pcm(path, af=voice_af)
         s = int(round(st * SR))
         e = min(n, s + len(x))
         if e > s:

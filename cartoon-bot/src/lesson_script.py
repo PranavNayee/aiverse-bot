@@ -286,3 +286,42 @@ def generate_fun_fact_script(fact):
         return FUN_PROMPT.format(title=fact["title"], facts=fact["facts"], feedback=fb, schema=SCHEMA)
     log(f"Writing fun fact: {fact['title']}")
     return _make(prompt, fact["facts"], fact["title"], 4, 8)
+
+
+SPEECH_PROMPT = """Convert each Hinglish narration line (Roman script) into the form a native HINDI text-to-speech voice reads perfectly.
+Rules:
+- Write Hindi words in Devanagari (e.g. "samjho" -> "समझो", "kya" -> "क्या", "hai" -> "है").
+- Keep English/technical words in English Latin script exactly (AI, model, data, training, neural network, Python...).
+- Keep the SAME words in the SAME order. Do not add, drop, translate or explain anything.
+- Write numbers and symbols the way they should be spoken.
+- Keep the punctuation (? ! , .). Use "।" or "." for full stops.
+
+LINES:
+{lines}
+
+Return ONLY JSON: {{"speech": ["line 1 converted", "line 2 converted", ...]}} with exactly {n} items."""
+
+_DEV = re.compile(r"[ऀ-ॿ]")
+
+def to_speech(narrations):
+    """Roman Hinglish lines -> Devanagari-for-TTS lines (English terms kept). Returns a list with None for any
+    line that could not be converted safely (that line is then spoken from the Roman text)."""
+    lines = "\n".join(f"{i+1}. {t}" for i, t in enumerate(narrations))
+    try:
+        res = llm.generate_json(SPEECH_PROMPT.format(lines=lines, n=len(narrations)), temperature=0,
+                                order=("groq", "gemini"))
+        out = [str(x) for x in (res.get("speech") or [])]
+    except Exception as e:
+        log(f"  Devanagari conversion failed, speaking Roman text: {e}")
+        return [None] * len(narrations)
+    if len(out) != len(narrations):
+        log(f"  Devanagari conversion returned {len(out)} lines for {len(narrations)}; speaking Roman text")
+        return [None] * len(narrations)
+    good = []
+    for rom, dev in zip(narrations, out):
+        dev = re.sub(r"^\s*\d+[.)]\s*", "", dev).strip()
+        n_r, n_d = len(rom.split()), len(dev.split())
+        ok = bool(_DEV.search(dev)) and 0.6 * n_r <= n_d <= 1.5 * n_r
+        good.append(dev if ok else None)
+    log(f"  Devanagari speech ready for {sum(g is not None for g in good)}/{len(good)} scenes")
+    return good

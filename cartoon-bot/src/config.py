@@ -43,15 +43,26 @@ SERIES_NAME = env("SERIES_NAME", "AI Seekho")
 # Content language: "hinglish" (default), "english_only", "hindi_only"
 LANGUAGE_MODE = env("LANGUAGE_MODE", "hinglish")
 
-# Indian voices for proper Hinglish pronunciation (US/UK voices butcher Hindi words)
+# ---------------- Voice ----------------
+# Hinglish is SPOKEN by the native Hindi voice from a Devanagari copy of the script (English tech terms stay
+# in English), so Hindi words are pronounced properly. Captions on screen stay in Roman Hinglish.
+VOICE_NAME  = env("VOICE_NAME", "hi-IN-MadhurNeural") or "hi-IN-MadhurNeural"
+VOICE_RATE  = env("VOICE_RATE", "-3%") or "-3%"          # slower = more weight and clarity
+VOICE_PITCH = env("VOICE_PITCH", "-6Hz") or "-6Hz"       # lower = deeper (try -10Hz for even deeper)
+VOICE_FX    = flag("VOICE_FX")                          # broadcast polish: bass, clarity, compression
+
 VOICES = {
-    "hinglish":       {"voice": "en-IN-PrabhatNeural", "rate": "+3%", "pitch": "+0Hz"},   # main teacher voice
-    "english":        {"voice": "en-US-AndrewNeural",  "rate": "+5%", "pitch": "+0Hz"},
-    "hinglish_hindi": {"voice": "hi-IN-MadhurNeural",  "rate": "+3%", "pitch": "+0Hz"},
-    "narrator":       {"voice": "en-IN-PrabhatNeural", "rate": "+0%", "pitch": "+0Hz"},
-    "hindi":          {"voice": "hi-IN-MadhurNeural",  "rate": "+3%", "pitch": "+0Hz"},
-    "hindi_female":   {"voice": "en-IN-NeerjaNeural",  "rate": "+3%", "pitch": "+0Hz"},
+    "hinglish":       {"voice": VOICE_NAME,            "rate": VOICE_RATE, "pitch": VOICE_PITCH},  # main teacher voice
+    "hinglish_roman": {"voice": "en-IN-PrabhatNeural", "rate": "+0%",      "pitch": "-4Hz"},       # fallback for Roman text
+    "english":        {"voice": "en-US-AndrewNeural",  "rate": "+0%",      "pitch": "-4Hz"},
+    "narrator":       {"voice": VOICE_NAME,            "rate": VOICE_RATE, "pitch": VOICE_PITCH},
+    "hindi":          {"voice": VOICE_NAME,            "rate": VOICE_RATE, "pitch": VOICE_PITCH},
 }
+
+# deep, powerful "radio" voice chain (ffmpeg filters)
+VOICE_FILTER = ("highpass=f=70,equalizer=f=110:t=q:w=1:g=5,equalizer=f=320:t=q:w=1.2:g=-2,"
+                "equalizer=f=3200:t=q:w=1.5:g=2.5,acompressor=threshold=-20dB:ratio=3:attack=5:release=90:makeup=3,"
+                "alimiter=limit=0.95")
 
 def get_lesson_voice():
     if LANGUAGE_MODE == "english_only":
@@ -61,3 +72,4 @@ def get_lesson_voice():
     return "hinglish"
 
 DEFAULT_LESSON_VOICE = get_lesson_voice()
+SPEAK_DEVANAGARI = LANGUAGE_MODE == "hinglish" and VOICE_NAME.startswith("hi-")

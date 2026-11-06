@@ -61,6 +61,10 @@ jobs:
           LANGUAGE_MODE: ${{ vars.LANGUAGE_MODE || 'hinglish' }}
           MASCOT: ${{ vars.MASCOT || 'true' }}
           MUSIC: ${{ vars.MUSIC || 'true' }}
+          VOICE_NAME: ${{ vars.VOICE_NAME || 'hi-IN-MadhurNeural' }}
+          VOICE_PITCH: ${{ vars.VOICE_PITCH || '-6Hz' }}
+          VOICE_RATE: ${{ vars.VOICE_RATE || '-3%' }}
+          VOICE_FX: ${{ vars.VOICE_FX || 'true' }}
           POST_NOW: ${{ inputs.post_now || 'false' }}
           FORCE_NEW: ${{ inputs.force_new || 'false' }}
           PYTHONPATH: cartoon-bot/src

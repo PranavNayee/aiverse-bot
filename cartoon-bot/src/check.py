@@ -68,8 +68,9 @@ def c_storage():
 def c_voice():
     import voice
     p = os.path.join(tempfile.mkdtemp(), "t.mp3")
-    words = voice.synth("Namaste doston, aaj hum AI seekhenge.", C.DEFAULT_LESSON_VOICE, p)
-    return f"voice OK ({voice.duration(p):.1f}s, {len(words)} timed words)"
+    text = "नमस्ते दोस्तों, आज हम AI सीखेंगे।" if C.SPEAK_DEVANAGARI else "Namaste doston, aaj hum AI seekhenge."
+    words = voice.synth(text, C.DEFAULT_LESSON_VOICE, p)
+    return f"voice {C.VOICE_NAME} {C.VOICE_PITCH} OK ({voice.duration(p):.1f}s, {len(words)} timed words)"
 
 def c_render():
     import edu_render, soundtrack

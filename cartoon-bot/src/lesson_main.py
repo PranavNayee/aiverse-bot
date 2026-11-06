@@ -99,9 +99,15 @@ def build_fun_fact_caption(script, topic):
 def generate_voice_for_scene(scene, scene_idx):
     """Narration for one scene -> (mp3 path, seconds, word timings)."""
     audio_path = f"work/audio_{scene_idx}.mp3"
-    words = voice.synth(scene["narration"], C.DEFAULT_LESSON_VOICE, audio_path)
+    speech = scene.get("speech")
+    if speech:                                   # native Hindi voice reads the Devanagari copy
+        spoken = voice.synth(speech, C.DEFAULT_LESSON_VOICE, audio_path)
+    else:                                        # Roman text: use the Indian-English voice (reads Roman best)
+        spk = "hinglish_roman" if C.SPEAK_DEVANAGARI else C.DEFAULT_LESSON_VOICE
+        spoken = voice.synth(scene["narration"], spk, audio_path)
     duration = voice.duration(audio_path)
-    log(f"  Scene {scene_idx}: voice {duration:.1f}s - {scene['narration'][:50]}...")
+    words = voice.align(scene["narration"], spoken, duration)   # captions show the Roman words
+    log(f"  Scene {scene_idx}: voice {duration:.1f}s - {(speech or scene['narration'])[:50]}...")
     return audio_path, duration, words
 
 
@@ -124,6 +130,10 @@ def generate_lesson_video(lesson, lesson_num, script):
     shutil.rmtree("work", ignore_errors=True)
     os.makedirs("work")
 
+    if C.SPEAK_DEVANAGARI:
+        log("🗣️ Preparing Devanagari speech for proper Hindi pronunciation...")
+        for sc, sp in zip(script["scenes"], lesson_script.to_speech([s["narration"] for s in script["scenes"]])):
+            sc["speech"] = sp
     voices = generate_all_voices_parallel(script["scenes"])
     scenes = _optimize_scene_pacing([{"kind": s["kind"], "visual": s["visual"], "dur": d}
                                      for s, (_, d, _) in zip(script["scenes"], voices)])
@@ -136,7 +146,8 @@ def generate_lesson_video(lesson, lesson_num, script):
 
     log("🎵 Building soundtrack (voice + music bed + lip-sync levels)...")
     levels = soundtrack.build([v[0] for v in voices], [s["start"] for s in scenes], total, "work/mix.wav",
-                              edu_render.FPS, music=C.MUSIC, music_dir=C.MUSIC_DIR)
+                              edu_render.FPS, music=C.MUSIC, music_dir=C.MUSIC_DIR,
+                              voice_af=C.VOICE_FILTER if C.VOICE_FX else None)
 
     log(f"🖌️ Animating {len(scenes)} scenes, {total:.1f}s (mascot={C.MASCOT})...")
     final_video, cover = "work/final.mp4", "work/cover.jpg"
