@@ -23,7 +23,7 @@ Your Instagram access token expired on **Nov 4, 2026**. Instagram tokens last 60
 **Option A: Using Browser**
 1. Replace `YOUR_SHORT_TOKEN` in this URL:
 ```
-https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=1445425344359379&client_secret=cac042373d9d2c94c86c0a2d6229621f&fb_exchange_token=YOUR_SHORT_TOKEN
+https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=1445425344359379&client_secret=YOUR_APP_SECRET&fb_exchange_token=YOUR_SHORT_TOKEN
 ```
 
 2. Paste in browser, press Enter
@@ -41,7 +41,7 @@ https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token
 ```bash
 SHORT_TOKEN="PASTE_YOUR_SHORT_TOKEN_HERE"
 
-curl "https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=1445425344359379&client_secret=cac042373d9d2c94c86c0a2d6229621f&fb_exchange_token=$SHORT_TOKEN"
+curl "https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=1445425344359379&client_secret=YOUR_APP_SECRET&fb_exchange_token=$SHORT_TOKEN"
 ```
 
 ### Step 3: Update GitHub Secret

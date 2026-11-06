@@ -9,7 +9,8 @@ W, H, FPS = 1080, 1920, 30
 TAU = 2 * math.pi
 FONT_DIR = "/usr/share/fonts/truetype/noto/"
 FONT_FALLBACK = "/usr/share/fonts/truetype/dejavu/"
-EMOJI_FONTS = [FONT_DIR + "NotoColorEmoji.ttf", "/usr/share/fonts/noto/NotoColorEmoji.ttf"]
+EMOJI_FONTS = [(FONT_DIR + "NotoColorEmoji.ttf", 109), ("/usr/share/fonts/noto/NotoColorEmoji.ttf", 109),
+               ("/System/Library/Fonts/Apple Color Emoji.ttc", 160)]
 
 TEXT, MUTED, DARK = (244, 246, 255), (156, 166, 196), (12, 14, 34)
 LEVEL_COLOR = {"basics": (45, 212, 191), "intermediate": (251, 191, 36), "advanced": (244, 114, 182),
@@ -18,17 +19,26 @@ INDIGO, GREEN, RED = (129, 140, 248), (74, 222, 128), (251, 113, 133)
 TOP, BOTTOM = 270, 1290            # safe content band (captions live below, phone UI covers the very top/bottom)
 
 # ---------------------------------------------------------------- helpers
+_MAC = "/System/Library/Fonts/"
 @functools.lru_cache(maxsize=None)
 def font(size, bold=True, mono=False):
+    size = int(size)
     names = ([("NotoSansMono-Bold.ttf" if bold else "NotoSansMono-Regular.ttf")] if mono else
              [("NotoSans-Bold.ttf" if bold else "NotoSans-Regular.ttf")])
-    for base in (FONT_DIR, FONT_FALLBACK):
-        for n in names + ["DejaVuSansMono-Bold.ttf" if mono else "DejaVuSans-Bold.ttf"]:
-            try:
-                return ImageFont.truetype(base + n, size)
-            except OSError:
-                continue
-    return ImageFont.load_default()
+    paths = [base + n for base in (FONT_DIR, FONT_FALLBACK)
+             for n in names + ["DejaVuSansMono-Bold.ttf" if mono else "DejaVuSans-Bold.ttf"]]
+    # macOS fallbacks (local previews only; GitHub runners use the Noto fonts above)
+    paths += ([_MAC + "Menlo.ttc"] if mono else
+              [_MAC + "Supplemental/Arial Bold.ttf" if bold else _MAC + "Supplemental/Arial.ttf"])
+    for p in paths:
+        try:
+            return ImageFont.truetype(p, size)
+        except OSError:
+            continue
+    try:
+        return ImageFont.load_default(size)
+    except TypeError:
+        return ImageFont.load_default()
 
 def clamp(x, a=0.0, b=1.0):
     return max(a, min(b, x))
@@ -53,11 +63,11 @@ def rgba(c, a=1.0):
 def emoji_img(ch, size):
     if not ch:
         return None
-    for fp in EMOJI_FONTS:
+    for fp, fsize in EMOJI_FONTS:
         if os.path.exists(fp):
             try:
-                im = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
-                ImageDraw.Draw(im).text((20, 20), ch, font=ImageFont.truetype(fp, 109), embedded_color=True)
+                im = Image.new("RGBA", (fsize * 2, fsize * 2), (0, 0, 0, 0))
+                ImageDraw.Draw(im).text((20, 20), ch, font=ImageFont.truetype(fp, fsize), embedded_color=True)
                 box = im.getbbox()
                 if box:
                     im = im.crop(box)
@@ -98,10 +108,7 @@ def put(frame, im, cx, cy, scale=1.0, alpha=1.0):
         return  # Completely outside frame
     
     try:
-        if 0 <= paste_x < W and 0 <= paste_y < H and paste_x + im.width <= W and paste_y + im.height <= H:
-            frame.alpha_composite(im, (paste_x, paste_y))
-        else:
-            frame.paste(im, (paste_x, paste_y), im)
+        frame.paste(im, (paste_x, paste_y), im)     # frames are RGB: the sprite's alpha is the blend mask
     except Exception:
         pass  # Silently skip if paste fails
 
@@ -144,7 +151,7 @@ def base_gradient():
         y = np.linspace(0, 1, H, dtype=np.float32)[:, None]
         top, bot = np.array((13, 15, 38), np.float32), np.array((34, 22, 74), np.float32)
         arr = (top + (bot - top) * y)[:, None, :].repeat(W, 1)
-        img = Image.fromarray(arr.astype(np.uint8), "RGB").convert("RGBA")
+        img = Image.fromarray(arr.astype(np.uint8), "RGB")   # RGB on purpose: RGBA ink then BLENDS (on RGBA it overwrites)
         d = ImageDraw.Draw(img, "RGBA")
         for gx in range(0, W + 1, 90):                      # faint blueprint grid
             d.line([(gx, 0), (gx, H)], fill=(255, 255, 255, 8), width=1)
@@ -443,33 +450,141 @@ def s_cta(frame, d, v, t, dur, ctx):
 DRAWERS = {"hook": s_hook, "bullets": s_bullets, "flow": s_flow, "compare": s_compare, "network": s_network,
            "code": s_code, "stat": s_stat, "formula": s_formula, "takeaway": s_takeaway, "cta": s_cta}
 
-# ---------------------------------------------------------------- scene -> mp4 (with its own audio)
-def draw_frame(spec, t, dur, ctx):
+# ---------------------------------------------------------------- captions (speech bubble, word-by-word karaoke)
+BUBBLE = (335, 1318, 950, 1572)            # x0, y0, x1, y1 - left of Instagram's right-side buttons, above its caption
+MASCOT_XY = (182, 1452)
+XFADE = 0.28                                # crossfade length between scenes (s)
+
+
+def make_chunks(words, max_words=4, max_chars=24, gap=0.35):
+    """words: [(start, end, text)] in GLOBAL seconds -> [{'start','end','words':[...]}] caption chunks."""
+    chunks, cur = [], []
+    for w in words:
+        if cur and (len(cur) >= max_words or len(" ".join(x[2] for x in cur + [w])) > max_chars
+                    or w[0] - cur[-1][1] > gap):
+            chunks.append(cur); cur = []
+        cur.append(w)
+        if re.search(r"[.?!,]$", w[2]) and len(cur) >= 2:
+            chunks.append(cur); cur = []
+    if cur:
+        chunks.append(cur)
+    out = []
+    for i, c in enumerate(chunks):
+        nxt = chunks[i + 1][0][0] if i + 1 < len(chunks) else c[-1][1] + 0.6
+        out.append({"start": c[0][0] - 0.06, "end": min(nxt - 0.02, c[-1][1] + 0.7), "words": c})
+    return out
+
+
+@functools.lru_cache(maxsize=512)
+def _bubble_layout(texts):
+    """Lay out the chunk's words in <=2 centred lines inside the bubble. Returns (font, [(x, y, word_index)])."""
+    d = ImageDraw.Draw(Image.new("RGBA", (8, 8)))
+    x0, y0, x1, y1 = BUBBLE
+    maxw, maxh = x1 - x0 - 70, y1 - y0 - 50
+    for size in range(66, 37, -4):
+        f = font(size)
+        sp = d.textlength(" ", font=f)
+        lines, cur, curw = [], [], 0.0
+        for i, w in enumerate(texts):
+            ww = d.textlength(w, font=f)
+            if cur and curw + sp + ww > maxw:
+                lines.append((cur, curw)); cur, curw = [], 0.0
+            curw = curw + (sp if cur else 0) + ww
+            cur.append((i, w, ww))
+        if cur:
+            lines.append((cur, curw))
+        if len(lines) <= 2 and len(lines) * size * 1.25 <= maxh and all(lw <= maxw for _, lw in lines):
+            break
+    cy = (y0 + y1) / 2
+    placed = []
+    for li, (items, lw) in enumerate(lines):
+        y = cy + (li - (len(lines) - 1) / 2) * size * 1.25
+        x = (x0 + x1) / 2 - lw / 2
+        for i, w, ww in items:
+            placed.append((x, y, i)); x += ww + sp
+    return f, tuple(placed)
+
+
+def draw_bubble(frame, chunk, t, acc):
+    if not chunk:
+        return
+    d = ImageDraw.Draw(frame, "RGBA")
+    age = t - chunk["start"]
+    pop = ease_back(clamp(age / 0.16))
+    yo = (1 - pop) * 14
+    x0, y0, x1, y1 = BUBBLE
+    card(d, (x0, y0 + yo, x1, y1 + yo), 46, (10, 12, 32, 225), rgba(acc, .95), 4)
+    ty = (y0 + y1) / 2 + yo - 20                                  # tail pointing at the bot's face
+    d.polygon([(x0 + 2, ty - 26), (x0 + 2, ty + 26), (x0 - 40, ty + 34)], fill=(10, 12, 32, 225))
+    d.line([(x0 + 1, ty + 26), (x0 - 40, ty + 34), (x0 + 1, ty - 26)], fill=rgba(acc, .95), width=4)
+    texts = tuple(w[2] for w in chunk["words"])
+    f, placed = _bubble_layout(texts)
+    for x, y, i in placed:
+        ws, we, txt = chunk["words"][i]
+        if t >= we:
+            col = TEXT
+        elif t >= ws:
+            col = rgba(acc)                                      # word being spoken right now
+        else:
+            col = rgba(TEXT, .45)
+        d.text((x, y + yo), txt, font=f, fill=col, anchor="lm")
+
+
+# ---------------------------------------------------------------- whole reel -> one mp4 (single pass, no cut glitches)
+def draw_content(spec, t, dur, ctx):
     frame = base_gradient().copy()
     chrome(frame, ctx, t)
     d = ImageDraw.Draw(frame, "RGBA")
     DRAWERS[spec["kind"]](frame, d, spec["visual"], t, dur, ctx)
-    if t < 0.22:                                         # quick colour flash on every cut
-        fl = Image.new("RGBA", (W, H), rgba(ctx["accent"], 0.28 * (1 - t / 0.22)))
-        frame.alpha_composite(fl)
     return frame
 
-def render_scene(spec, out_path, snapshot=None):
-    """spec: kind, visual, audio, dur, level, label, t0 (scene start in whole video), total (whole video seconds)."""
-    dur = float(spec["dur"])
-    n = max(2, int(round(dur * FPS)))
-    ctx = {"accent": LEVEL_COLOR.get(spec.get("level"), LEVEL_COLOR["basics"]), "label": spec["label"],
-           "t0": float(spec["t0"]), "total": float(spec["total"])}
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
-           "-i", spec["audio"], "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
-           "-pix_fmt", "yuv420p", "-af", "apad", "-t", f"{dur:.3f}", "-c:a", "aac", "-ar", "44100", "-ac", "2", out_path]
+
+def render_video(scenes, audio_wav, levels, out_path, label, level="basics", words=None, mascot_on=True,
+                 snapshot=None):
+    """scenes: [{kind, visual, start, dur}] (start/dur in seconds, contiguous).
+    levels: per-frame voice loudness 0..1 (lip-sync). words: [(start, end, word)] global timings for captions.
+    snapshot: optional (jpg_path, second) to save a cover frame."""
+    import mascot
+    total = scenes[-1]["start"] + scenes[-1]["dur"]
+    n = int(round(total * FPS))
+    acc = LEVEL_COLOR.get(level, LEVEL_COLOR["basics"])
+    chunks = make_chunks(words or [])
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
+           "-i", "-", "-i", audio_wav, "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "veryfast",
+           "-crf", "20", "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart",
+           "-af", "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=44100", "-c:a", "aac", "-b:a", "160k", "-ar", "44100",
+           "-ac", "2", "-t", f"{total:.3f}", out_path]
     errf = open(out_path + ".err", "wb")
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=errf)
-    snap_f = int(snapshot[1] * n) if snapshot else -1
+    si, ci = 0, 0
+    prev_content, xfade_src = None, None
+    snap_f = int(snapshot[1] * FPS) if snapshot else -1
     rc = -1
     try:
         for f in range(n):
-            im = draw_frame(spec, f / FPS, dur, ctx).convert("RGB")
+            t = f / FPS
+            while si + 1 < len(scenes) and t >= scenes[si + 1]["start"]:
+                si += 1
+                xfade_src = prev_content
+            sc = scenes[si]
+            st = t - sc["start"]
+            ctx = {"accent": acc, "label": label, "t0": sc["start"], "total": total}
+            content = draw_content(sc, st, sc["dur"], ctx)
+            prev_content = content
+            frame = content
+            if xfade_src is not None and st < XFADE and si > 0:
+                frame = Image.blend(xfade_src, content, ease_out(st / XFADE))
+            elif st >= XFADE:
+                xfade_src = None
+            frame = frame.copy() if frame is content else frame
+            if mascot_on:
+                talk = float(levels[f]) if f < len(levels) else 0.0
+                mascot.draw(frame, acc, sc["kind"], t, st, talk, *MASCOT_XY)
+            while ci < len(chunks) and t > chunks[ci]["end"]:
+                ci += 1
+            if ci < len(chunks) and chunks[ci]["start"] <= t:
+                draw_bubble(frame, chunks[ci], t, acc)
+            im = frame
             if f == snap_f:
                 im.save(snapshot[0], quality=92)
             proc.stdin.write(im.tobytes())
@@ -479,5 +594,6 @@ def render_scene(spec, out_path, snapshot=None):
     finally:
         errf.close()
     if rc != 0:
-        raise RuntimeError("ffmpeg (lesson scene) failed: " + open(out_path + ".err", errors="ignore").read()[-1000:])
+        raise RuntimeError("ffmpeg (reel render) failed: " + open(out_path + ".err", errors="ignore").read()[-1000:])
     os.remove(out_path + ".err")
+    return total

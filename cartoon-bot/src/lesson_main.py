@@ -1,13 +1,8 @@
 """Main lesson generation - uses edu_render professional animation system"""
-import datetime, json, os, shutil, subprocess, sys, time
+import datetime, os, shutil, sys, time
 from util import log, retry
 import config as C
-import syllabus, lesson_script, edu_render, voice, storage, notify, instagram
-
-def is_weekend():
-    """Check if today is weekend"""
-    day = datetime.date.today().weekday()  # Monday=0, Sunday=6
-    return day in (5, 6)  # Saturday or Sunday
+import syllabus, lesson_script, edu_render, voice, storage, notify, instagram, soundtrack, slots, publisher
 
 def _optimize_scene_pacing(scenes):
     """ViMax-inspired pacing: add micro-pauses for complex scenes, speed up simple ones"""
@@ -102,229 +97,145 @@ def build_fun_fact_caption(script, topic):
 
 @retry(tries=3, delay=5)
 def generate_voice_for_scene(scene, scene_idx):
-    """Generate voice narration for one scene"""
-    narration = scene["narration"]
+    """Narration for one scene -> (mp3 path, seconds, word timings)."""
     audio_path = f"work/audio_{scene_idx}.mp3"
-    
-    # Use voice based on language mode (auto-adapts to Hinglish/English/Hindi)
-    voice_type = C.DEFAULT_LESSON_VOICE
-    voice.synth(narration, voice_type, audio_path)
-    
-    # Get actual duration
+    words = voice.synth(scene["narration"], C.DEFAULT_LESSON_VOICE, audio_path)
     duration = voice.duration(audio_path)
-    
-    log(f"  Scene {scene_idx}: voice {duration:.1f}s - {narration[:50]}...")
-    return audio_path, duration
+    log(f"  Scene {scene_idx}: voice {duration:.1f}s - {scene['narration'][:50]}...")
+    return audio_path, duration, words
+
 
 def generate_all_voices_parallel(scenes):
-    """Generate voice for all scenes in parallel (ViMax-inspired parallelization)
-    
-    ViMax generates images/videos in parallel for speed. We do the same with audio.
-    This is 5-7x faster than sequential generation.
-    """
+    """All scene voices at once (5-7x faster than one by one)."""
     import concurrent.futures
-    import threading
-    
     log(f"🎙️ Generating {len(scenes)} voice tracks in parallel...")
-    
-    results = {}
-    errors = {}
-    lock = threading.Lock()
-    
-    def gen_one(idx, scene):
-        try:
-            audio_path, duration = generate_voice_for_scene(scene, idx)
-            with lock:
-                results[idx] = (audio_path, duration)
-        except Exception as e:
-            with lock:
-                errors[idx] = str(e)
-    
-    # Generate all audio files simultaneously (max 8 threads to avoid API rate limits)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        futures = [executor.submit(gen_one, i, scene) for i, scene in enumerate(scenes)]
-        concurrent.futures.wait(futures)
-    
-    # Check for errors
-    if errors:
-        error_msg = "; ".join(f"scene {i}: {e}" for i, e in errors.items())
-        raise RuntimeError(f"Voice generation failed: {error_msg}")
-    
-    # Return in order
-    return [results[i] for i in range(len(scenes))]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
+        futs = [ex.submit(generate_voice_for_scene, sc, i) for i, sc in enumerate(scenes)]
+        errors = [f"scene {i}: {f.exception()}" for i, f in enumerate(futs) if f.exception()]
+        if errors:
+            raise RuntimeError("Voice generation failed: " + "; ".join(errors))
+        return [f.result() for f in futs]
+
 
 def generate_lesson_video(lesson, lesson_num, script):
-    """Generate complete lesson video using edu_render professional system
-    
-    Args:
-        lesson: Lesson dict from syllabus
-        lesson_num: Lesson number
-        script: Generated script dict with scenes
-    
-    Returns:
-        Path to final video, duration
-    """
-    
-    log(f"🎬 Rendering Lesson #{lesson_num}: {lesson['title']}")
-    
-    # Create work directory
+    """Voice -> one soundtrack -> one single-pass 2D animated render. Returns (video, seconds, cover jpg)."""
+    label = f"Lesson #{lesson_num}" if lesson_num else "Fun Fact"
+    log(f"🎬 Rendering {label}: {lesson['title']}")
     shutil.rmtree("work", ignore_errors=True)
     os.makedirs("work")
-    
-    # Generate ALL voices in parallel first (ViMax parallelization - massive speedup!)
-    voice_results = generate_all_voices_parallel(script["scenes"])
-    
-    # Prepare scenes with audio and timing
-    scenes = []
-    total_time = 0.0
-    
-    for i, (scene_spec, (audio_path, audio_dur)) in enumerate(zip(script["scenes"], voice_results)):
-        # Build scene spec for edu_render
-        scene = {
-            "kind": scene_spec["kind"],
-            "visual": scene_spec["visual"],
-            "audio": audio_path,
-            "dur": audio_dur,
-            "level": lesson.get("level", "basics"),
-            "label": f"Lesson #{lesson_num}",
-            "t0": total_time,  # Scene start time in whole video
-            "total": 0.0  # Will be set after we know total duration
-        }
-        
-        scenes.append(scene)
-        total_time += audio_dur
-    
-    # Update total duration in all scenes
-    for scene in scenes:
-        scene["total"] = total_time
-    
-    # Scene pacing optimization (ViMax-inspired): adjust for complex scenes
-    scenes = _optimize_scene_pacing(scenes)
-    
-    # Render each scene to separate video (with retry logic per scene)
-    scene_videos = []
-    for i, scene in enumerate(scenes):
-        scene_video = f"work/scene_{i}.mp4"
-        log(f"  Rendering scene {i+1}/{len(scenes)}: {scene['kind']} ({scene['dur']:.1f}s)")
-        
-        # Scene-level retry (ViMax pattern: don't regenerate entire video if one scene fails)
-        for attempt in range(3):
-            try:
-                edu_render.render_scene(scene, scene_video)
-                break
-            except Exception as e:
-                if attempt < 2:
-                    log(f"    ⚠️ Scene {i} failed (attempt {attempt+1}/3): {e}")
-                    time.sleep(2)
-                else:
-                    raise RuntimeError(f"Scene {i} failed after 3 attempts: {e}")
-        
-        scene_videos.append(scene_video)
-    
-    # Concatenate all scenes
-    log("Concatenating scenes...")
-    concat_list = "work/concat_list.txt"
-    with open(concat_list, "w") as f:
-        for vid in scene_videos:
-            f.write(f"file '{os.path.abspath(vid)}'\n")
-    
-    final_video = "work/final.mp4"
-    cmd = [
-        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_list,
-        "-c", "copy", final_video
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        log(f"FFmpeg concat error: {result.stderr}")
-        raise RuntimeError(f"Video concatenation failed: {result.stderr[-500:]}")
-    
-    file_size = os.path.getsize(final_video) / (1024 * 1024)  # MB
-    log(f"✅ Lesson video complete: {total_time:.1f}s, {file_size:.1f} MB")
-    
-    return final_video, total_time
+
+    voices = generate_all_voices_parallel(script["scenes"])
+    scenes = _optimize_scene_pacing([{"kind": s["kind"], "visual": s["visual"], "dur": d}
+                                     for s, (_, d, _) in zip(script["scenes"], voices)])
+    t, words = 0.0, []
+    for sc, (_, _, ws) in zip(scenes, voices):
+        sc["start"] = t
+        words += [(t + a, t + b, w) for a, b, w in ws]
+        t += sc["dur"]
+    total = t
+
+    log("🎵 Building soundtrack (voice + music bed + lip-sync levels)...")
+    levels = soundtrack.build([v[0] for v in voices], [s["start"] for s in scenes], total, "work/mix.wav",
+                              edu_render.FPS, music=C.MUSIC, music_dir=C.MUSIC_DIR)
+
+    log(f"🖌️ Animating {len(scenes)} scenes, {total:.1f}s (mascot={C.MASCOT})...")
+    final_video, cover = "work/final.mp4", "work/cover.jpg"
+    edu_render.render_video(scenes, "work/mix.wav", levels, final_video, label, lesson.get("level", "basics"),
+                            words=words, mascot_on=C.MASCOT, snapshot=(cover, min(1.4, total / 2)))
+    log(f"✅ Video complete: {total:.1f}s, {os.path.getsize(final_video) / 1e6:.1f} MB")
+    return final_video, total, cover
+
+
+def build_content(history, slot):
+    """Picks today's content: a lesson on weekdays, an AI fun fact on weekends (of the POSTING day)."""
+    if slots.is_weekend(slot):
+        log("🎉 Weekend slot - generating fun fact")
+        fact = syllabus.get_fun_fact(history)
+        script = lesson_script.generate_fun_fact_script(fact)
+        lesson = {"title": fact["title"], "title_en": fact["title"], "level": "weekend"}
+        return dict(script=script, lesson=lesson, lesson_num=None, fact_idx=fact["idx"], type="fun_fact",
+                    level="weekend", topic=fact["title"], caption=build_fun_fact_caption(script, fact["title"]))
+    log("📚 Weekday slot - generating lesson")
+    lesson, num, nxt = syllabus.get_next_lesson(history)
+    script = lesson_script.generate_lesson_script(lesson, num, nxt)
+    return dict(script=script, lesson=lesson, lesson_num=num, fact_idx=None, type="lesson", level=lesson["level"],
+                topic=lesson["title"], caption=build_lesson_caption(script, num, lesson["level"], lesson["title"]))
+
+
+def _token_warning():
+    try:
+        days = instagram.token_days_left()
+        if days is not None and days < 10:
+            notify.text(f"⚠️ Your Instagram access token expires in {days:.0f} days. "
+                        "Renew it (see GET_NEW_TOKEN.md) or posting will stop.")
+    except Exception as e:
+        log("Token check skipped:", e)
+
 
 def run_lesson_generation():
-    """Main entry point - generate and post lesson"""
     t0 = time.time()
+    force_new = os.environ.get("FORCE_NEW", "false").lower() == "true"
+    post_now = os.environ.get("POST_NOW", "false").lower() == "true"
+
+    if post_now:                                    # manual "make one and post it right now"
+        slot = slots.now()
+        key = slot.strftime("%Y-%m-%d-now%H%M")
+    else:
+        slot = slots.upcoming_slot()
+        key = slots.key(slot)
+    log(f"🗓️ Target slot: {slots.fmt(slot)} (key {key}, review mode: {C.REVIEW_MODE})")
+
     history = storage.get_json("history.json", [])
-    
-    # Check if weekend for fun fact
-    if is_weekend():
-        log("🎉 Weekend detected - generating fun fact")
-        fact = syllabus.get_fun_fact()
-        script = lesson_script.generate_fun_fact_script(fact)
-        caption = build_fun_fact_caption(script, fact["title"])
-        content_type = "fun_fact"
-        lesson_num = None
-        level = "weekend"
-        topic = fact["title"]
-        
-        # Adapt fact for video generation (treat as lesson-like)
-        lesson = {
-            "title": fact["title"],
-            "title_en": fact["title"],
-            "level": "weekend"
-        }
-    else:
-        log("📚 Weekday - generating lesson")
-        lesson, lesson_num, next_lesson = syllabus.get_next_lesson(history)
-        
-        if not lesson:
-            log("⚠️ No more lessons in syllabus!")
+    pending = storage.get_json("pending.json", None)
+    if not force_new and not post_now:
+        if any(h.get("slot") == key for h in history):
+            log(f"✅ The {key} reel is already posted - nothing to do.")
             return
-        
-        # Generate script with fact-checking
-        script = lesson_script.generate_lesson_script(lesson, lesson_num, next_lesson)
-        
-        # Build caption
-        caption = build_lesson_caption(script, lesson_num, lesson["level"], lesson["title"])
-        content_type = "lesson"
-        level = lesson["level"]
-        topic = lesson["title"]
-    
-    # Generate video with professional animations
-    log("🎬 Starting video generation with edu_render...")
-    final_video, duration = generate_lesson_video(lesson, lesson_num, script)
-    
-    # Upload to Supabase
-    day = datetime.date.today().isoformat()
-    stamp = datetime.datetime.utcnow().strftime("%H%M")
+        if pending and pending.get("slot") == key:
+            log(f"✅ The {key} reel is already made and queued - handing over to the poster.")
+            publisher.run(wait=True)
+            return
+    if pending and pending.get("slot") != key:
+        log(f"Replacing an old unposted reel for slot {pending.get('slot')}.")
+        notify.text(f"ℹ️ The reel for {pending.get('slot')} was never posted; replacing it with the {key} reel.")
+
+    c = build_content(history, slot)
+    final_video, duration, cover = generate_lesson_video(c["lesson"], c["lesson_num"], c["script"])
+
     log("☁️ Uploading to Supabase...")
-    url = storage.upload_file(final_video, f"lessons/{day}-{stamp}.mp4")
-    
-    # Record in history
-    entry = {
-        "date": day,
-        "type": content_type,
-        "lesson_num": lesson_num,
-        "level": level,
-        "topic": topic,
-        "duration": round(duration, 1),
-        "fact_check": script.get("fact_check", "pass")
-    }
-    
-    # Post to Instagram or queue for approval
-    if C.REVIEW_MODE == "auto":
-        log("📱 Posting to Instagram automatically...")
-        entry["media_id"] = instagram.post_reel(url, caption, None)
-        history.append(entry)
-        storage.put_json("history.json", history[-100:])
-        notify.text(f"✅ Lesson #{lesson_num if lesson_num else 'Weekend'} posted automatically!\n\n{caption[:500]}")
-    else:
-        log("⏸️ Queuing for manual approval...")
-        history.append(entry)
-        storage.put_json("history.json", history[-100:])
-        storage.put_json("pending.json", {
-            "video_url": url,
-            "caption": caption,
-            "date": day,
-            "created_ts": int(time.time()),
-            "attempts": 0
-        })
-        notify.text(f"🎓 New lesson ready! Reply /post to publish.\n\n{caption[:500]}")
-    
-    elapsed = time.time() - t0
-    log(f"✅ Done in {elapsed:.0f}s ({elapsed/60:.1f}min)")
+    stamp = slots.now().strftime("%H%M%S")
+    url = storage.upload_file(final_video, f"lessons/{key}-{stamp}.mp4")
+    cover_url = None
+    try:
+        cover_url = storage.upload_file(cover, f"covers/{key}-{stamp}.jpg", "image/jpeg")
+    except Exception as e:
+        log("Cover upload failed (posting without cover):", e)
+
+    post_at = time.time() if post_now else slot.timestamp()
+    storage.put_json("pending.json", {
+        "slot": key, "post_at": int(post_at), "video_url": url, "cover_url": cover_url, "caption": c["caption"],
+        "topic": c["topic"], "type": c["type"], "lesson_num": c["lesson_num"], "fact_idx": c["fact_idx"],
+        "level": c["level"], "duration": round(duration, 1), "fact_check": c["script"].get("fact_check", "pass"),
+        "created_ts": int(time.time()), "attempts": 0, "status": "queued",
+    })
+    for prefix, keep in (("lessons", 30), ("covers", 30)):
+        try:
+            storage.cleanup(prefix, keep=keep)
+        except Exception as e:
+            log("Cleanup skipped:", e)
+
+    when = "right now" if post_now or post_at <= time.time() else slots.fmt(post_at)
+    how = {"auto": f"It will post automatically {when}.",
+           "auto_unless_skip": f"It will post {when} unless you reply /skip.",
+           "approve": f"Reply /post to publish it at {when} (or /postnow to publish immediately, /skip to discard)."}
+    warn = "\n⚠️ Fact-check flagged issues - please watch before it posts." if c["script"].get("fact_check") == "warning" else ""
+    notify.video(final_video, f"🎬 {c['topic']} ({duration:.0f}s)\n{how.get(C.REVIEW_MODE, how['approve'])}{warn}", url)
+    _token_warning()
+    log(f"✅ Reel ready in {time.time() - t0:.0f}s. Queued for {when}.")
+
+    publisher.run(force=post_now, wait=True)       # posts now if due, or sleeps until the slot if it is close
+    log(f"✅ Done in {(time.time() - t0) / 60:.1f} min")
+
 
 if __name__ == "__main__":
     try:
@@ -333,5 +244,5 @@ if __name__ == "__main__":
         log(f"❌ Fatal error: {e}")
         import traceback
         traceback.print_exc()
-        notify.text(f"❌ Lesson generation failed:\n{str(e)[:800]}")
+        notify.text(f"❌ Reel generation failed (a backup run will retry):\n{str(e)[:800]}")
         sys.exit(1)

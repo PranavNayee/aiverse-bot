@@ -6,6 +6,9 @@ def env(name, default=None, required=False):
         raise RuntimeError(f"Missing secret/env var: {name}")
     return v
 
+def flag(name, default="true"):
+    return str(env(name, default) or default).strip().lower() in ("1", "true", "yes", "on")
+
 # ---------------- Secrets (GitHub: Settings > Secrets and variables > Actions) ----------------
 GEMINI_API_KEY   = lambda: env("GEMINI_API_KEY", required=True)
 TELEGRAM_TOKEN   = lambda: env("TELEGRAM_BOT_TOKEN", required=True)
@@ -15,109 +18,46 @@ SUPABASE_KEY     = lambda: env("SUPABASE_SERVICE_KEY", required=True)         # 
 SUPABASE_BUCKET  = lambda: env("SUPABASE_BUCKET", "cartoon-reels")            # must be a PUBLIC bucket
 IG_USER_ID       = lambda: env("IG_USER_ID", required=True)
 IG_ACCESS_TOKEN  = lambda: env("IG_ACCESS_TOKEN", required=True)
-CF_API_TOKEN     = lambda: env("CF_API_TOKEN")        # optional: backup image generator (Cloudflare Workers AI)
-CF_ACCOUNT_ID    = lambda: env("CF_ACCOUNT_ID")       # optional: needed only with CF_API_TOKEN
 
 # ---------------- Behaviour (GitHub: Settings > Secrets and variables > Actions > Variables) ----------------
-# REVIEW_MODE: approve (default: posts after you send /post) | auto_unless_skip | auto
-REVIEW_MODE  = env("REVIEW_MODE", "approve")
-REVIEW_HOURS = float(env("REVIEW_HOURS", "2"))
-MOUTH_FX     = env("MOUTH_FX", "true").lower() == "true"     # talking-mouth effect (set false if it looks bad)
+# REVIEW_MODE: auto             -> posts by itself at the slot time
+#              auto_unless_skip -> posts at the slot unless you send /skip in Telegram
+#              approve          -> posts at/after the slot only once you send /post in Telegram
+REVIEW_MODE  = (env("REVIEW_MODE", "approve") or "approve").strip().lower()
+REVIEW_HOURS = float(env("REVIEW_HOURS", "2"))   # auto_unless_skip: minimum time you get to /skip after the preview
 
-# Visual enhancements (set to "false" to disable)
-ADD_INTRO       = env("ADD_INTRO", "true").lower() == "true"        # Branded intro clip
-ADD_OUTRO       = env("ADD_OUTRO", "true").lower() == "true"        # CTA outro clip
-ADD_TRANSITIONS = env("ADD_TRANSITIONS", "true").lower() == "true"  # Crossfade between scenes
-KARAOKE_SUBS    = env("KARAOKE_SUBS", "true").lower() == "true"     # Word-by-word karaoke timing
+# ---------------- Schedule ----------------
+POST_TIME          = env("POST_TIME", "08:00") or "08:00"           # daily posting time (24h, in TIMEZONE)
+TIMEZONE           = env("TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
+LATE_GRACE_MINUTES = int(env("LATE_GRACE_MINUTES", "600") or 600)   # a reel made <=10 h after the slot still posts that day
+MAX_WAIT_MINUTES   = int(env("MAX_WAIT_MINUTES", "330") or 330)     # a job may sleep this long to hit the slot exactly
 
-# Leave GEMINI_MODELS empty: the bot asks Google which Flash models exist today (names get retired often).
-# To force specific ones, set the variable GEMINI_MODELS="model-a,model-b".
-GEMINI_MODELS = [m.strip() for m in env("GEMINI_MODELS", "").split(",") if m.strip()]
-GEMINI_FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3-flash-preview"]
-DEPTH_MODELS = ["depth-anything/Depth-Anything-V2-Small-hf", "LiheYoung/depth-anything-small-hf",
-                "Intel/dpt-hybrid-midas"]
-TRENDS_GEO   = env("TRENDS_GEO", "IN")
-NUM_SCENES   = int(env("NUM_SCENES", "7"))           # ~35-45 seconds
-IMG_SEED     = int(env("IMG_SEED", "4242"))
-MIN_SECONDS, MAX_SECONDS = 15, 80
+# ---------------- 2D animation ----------------
+MASCOT = flag("MASCOT")      # animated 'Seekho Bot' teacher: blinks, gestures, lip-syncs to the voice
+MUSIC  = flag("MUSIC")       # soft background music bed (generated, or a file from assets/music), ducked under voice
+MUSIC_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "music")
 
 # ---------------- The series & channel (edit freely) ----------------
 SERIES_NAME = env("SERIES_NAME", "AI Seekho")
-CHANNEL_HASHTAGS = ["#aiseekho", "#hinglish", "#aiexplained", "#machinelearning", "#hindi", "#techeducation"]
-CTA_TEXT = "Roz naya lesson - Follow karo! 🔔"
 
-# Content language mode (new: switch between Hinglish and English)
-# Options: "hinglish" (default), "english_only", "hindi_only"
+# Content language: "hinglish" (default), "english_only", "hindi_only"
 LANGUAGE_MODE = env("LANGUAGE_MODE", "hinglish")
 
-# Indian voices for proper Hinglish pronunciation
-# US/UK voices butcher Hindi words - ONLY use Indian voices!
+# Indian voices for proper Hinglish pronunciation (US/UK voices butcher Hindi words)
 VOICES = {
-    # Main teaching voice - INDIAN male voice (pronounces Hindi correctly)
-    "hinglish": {
-        "voice": "en-IN-PrabhatNeural",  # Indian English Male - reads Hinglish naturally
-        "rate": "+3%",   # Clear teaching pace
-        "pitch": "+0Hz"  # Natural deep male voice
-    },
-    
-    # English-only mode (clear American English)
-    "english": {
-        "voice": "en-US-AndrewNeural",  # US English Male - clear, professional
-        "rate": "+5%",
-        "pitch": "+0Hz"
-    },
-    
-    # Alternative: Pure Hindi voice (for Hindi-heavy segments)
-    "hinglish_hindi": {
-        "voice": "hi-IN-MadhurNeural",  # Pure Hindi Male - perfect Hindi pronunciation
-        "rate": "+3%",
-        "pitch": "+0Hz"
-    },
-    
-    # Narrator for explanations (slower, clearer)
-    "narrator": {
-        "voice": "en-IN-PrabhatNeural",  # Same voice, slower
-        "rate": "+0%",   # Natural pace for maximum clarity
-        "pitch": "+0Hz"
-    },
-    
-    # For pure Hindi segments (warm male voice)
-    "hindi": {
-        "voice": "hi-IN-MadhurNeural",  # Hindi Male - warm, natural
-        "rate": "+3%",
-        "pitch": "+0Hz"
-    },
-    
-    # Female backup (Indian voice)
-    "hindi_female": {
-        "voice": "en-IN-NeerjaNeural",  # Indian Female - clear Hinglish
-        "rate": "+3%",
-        "pitch": "+0Hz"
-    },
+    "hinglish":       {"voice": "en-IN-PrabhatNeural", "rate": "+3%", "pitch": "+0Hz"},   # main teacher voice
+    "english":        {"voice": "en-US-AndrewNeural",  "rate": "+5%", "pitch": "+0Hz"},
+    "hinglish_hindi": {"voice": "hi-IN-MadhurNeural",  "rate": "+3%", "pitch": "+0Hz"},
+    "narrator":       {"voice": "en-IN-PrabhatNeural", "rate": "+0%", "pitch": "+0Hz"},
+    "hindi":          {"voice": "hi-IN-MadhurNeural",  "rate": "+3%", "pitch": "+0Hz"},
+    "hindi_female":   {"voice": "en-IN-NeerjaNeural",  "rate": "+3%", "pitch": "+0Hz"},
 }
 
-# Auto-select voice based on language mode
 def get_lesson_voice():
-    """Get the appropriate voice based on LANGUAGE_MODE"""
     if LANGUAGE_MODE == "english_only":
         return "english"
-    elif LANGUAGE_MODE == "hindi_only":
+    if LANGUAGE_MODE == "hindi_only":
         return "hindi"
-    else:  # hinglish (default)
-        return "hinglish"
+    return "hinglish"
 
-# Default voice to use for lessons - adapts to language mode
 DEFAULT_LESSON_VOICE = get_lesson_voice()
-
-# Content type for determining what to generate
-CONTENT_MODE = env("CONTENT_MODE", "educational")  # "educational" or "entertainment"
-
-# Topics containing these words are removed BEFORE the AI sees them, and stories containing them are rejected.
-BLOCK_EN = """election elections vote voting poll polls bjp congress aap tmc modi rahul kejriwal yogi mamata shah
- parliament minister cm government govt protest riot riots war army military attack attacks terror terrorist blast
- bomb murder murdered killed kill dead death dies died suicide rape assault arrest arrested jail court verdict
- accident crash collapse flood earthquake cyclone covid cancer disease hospital hindu muslim christian sikh islam
- religion religious temple mosque church caste dalit reservation pakistan china israel gaza ukraine russia
- sex sexual porn drugs""".split()
-BLOCK_HI = ["चुनाव", "भाजपा", "कांग्रेस", "आतंक", "दंगा", "हत्या", "मौत", "बलात्कार", "आत्महत्या",
-            "धर्म", "मस्जिद", "मंदिर", "हिंदू", "मुस्लिम", "जाति", "युद्ध", "हमला", "सरकार"]

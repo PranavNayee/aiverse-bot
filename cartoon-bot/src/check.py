@@ -1,5 +1,5 @@
-"""Pre-flight check: run this first. It tests every service and tells you exactly what is wrong."""
-import os, shutil, subprocess, sys, tempfile
+"""Pre-flight check: tests every service the bot uses and tells you exactly what is wrong (also sent to Telegram)."""
+import os, shutil, subprocess, sys, tempfile, time
 import config as C
 
 results = []
@@ -16,36 +16,36 @@ def need(*names):
         raise RuntimeError("missing secrets: " + ", ".join(missing))
 
 def c_secrets():
-    need("GEMINI_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SUPABASE_URL", "SUPABASE_SERVICE_KEY")
+    need("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SUPABASE_URL", "SUPABASE_SERVICE_KEY", "IG_USER_ID", "IG_ACCESS_TOKEN")
+    if not (os.environ.get("GEMINI_API_KEY") or os.environ.get("GROQ_API_KEY")):
+        raise RuntimeError("set GEMINI_API_KEY and/or GROQ_API_KEY")
     return "all core secrets present"
+
+def c_schedule():
+    import slots
+    s = slots.upcoming_slot()
+    return f"next post slot {slots.fmt(s)} ({C.TIMEZONE}), review mode '{C.REVIEW_MODE}'"
 
 def c_ffmpeg():
     for b in ("ffmpeg", "ffprobe"):
         if not shutil.which(b): raise RuntimeError(f"{b} not installed")
     out = subprocess.run(["ffmpeg", "-filters"], capture_output=True, text=True).stdout
-    for f in (" ass ", "zoompan", "sidechaincompress", "loudnorm"):
-        if f not in out: raise RuntimeError(f"ffmpeg is missing filter {f.strip()}")
-    return "ffmpeg + required filters OK"
+    if "loudnorm" not in out: raise RuntimeError("ffmpeg is missing the loudnorm filter")
+    return "ffmpeg OK"
 
 def c_font():
-    out = subprocess.run(["fc-list"], capture_output=True, text=True).stdout
-    if "Devanagari" not in out:
-        raise RuntimeError("Noto Sans Devanagari font missing (apt install fonts-noto-core). Hindi subtitles would show boxes.")
+    out = subprocess.run(["fc-list"], capture_output=True, text=True).stdout if shutil.which("fc-list") else ""
+    if "NotoSans-Bold" not in out and "Noto Sans" not in out:
+        raise RuntimeError("Noto Sans font missing (apt install fonts-noto-core)")
     if "Emoji" not in out:
-        raise RuntimeError("Hindi font OK, but emoji font missing (apt install fonts-noto-color-emoji): stickers will be skipped")
-    return "Hindi + emoji fonts found"
+        raise RuntimeError("emoji font missing (apt install fonts-noto-color-emoji): emojis will be skipped")
+    return "Noto + emoji fonts found"
 
-def c_gemini():
-    import story
-    r = story.gemini('Return only JSON: {"ok": true}', temperature=0)
+def c_llm():
+    import llm
+    r = llm.generate_json('Return only this JSON: {"ok": true}', temperature=0)
     if not r.get("ok"): raise RuntimeError(f"unexpected reply {r}")
-    return f"Gemini reachable (using {story.LAST_MODEL}; candidates: {', '.join(story.model_candidates())})"
-
-def c_trends():
-    import trends
-    t = trends.get_trends()
-    if not t: raise RuntimeError("no safe trending topics found (bot will fall back to everyday jokes)")
-    return f"{len(t)} safe topics, e.g. {t[0][:60]}"
+    return f"AI writer reachable ({llm.LAST})"
 
 def c_telegram():
     import notify
@@ -54,66 +54,50 @@ def c_telegram():
 
 def c_storage():
     import storage, requests
-    storage.put_json("healthcheck.json", {"ok": True})
+    storage.put_json("healthcheck.json", {"ok": True, "ts": time.time()})
     if not storage.get_json("healthcheck.json", None):
         raise RuntimeError("write worked but read failed")
     url = storage.public_url("healthcheck.json")
     r = requests.get(url, timeout=30)
     if r.status_code != 200:
         raise RuntimeError(f"upload works, but the PUBLIC url returns {r.status_code}. Make the bucket PUBLIC in Supabase: {url}")
-    return "Supabase storage read/write + public URL OK"
-
-_TEST = {}
-def c_image():
-    # For education channel, we use code-generated animations instead of AI images
-    import animations
-    temp_dir = tempfile.mkdtemp()
-    p = animations.create_title_card("Test Lesson", "Check", duration=2.0)
-    _TEST["video"] = p
-    return f"Animation engine generated title card: {p}"
-
-def c_depth():
-    # Skip depth check for education channel (not needed for code animations)
-    return "Not needed for education channel (code-based animations)"
-
-def c_mouth():
-    # Skip mouth detection for education channel (faceless)
-    return "Not needed for education channel (faceless animations)"
-
-def c_render():
-    # Test animation rendering
-    import animations
-    d = tempfile.mkdtemp()
-    p = animations.create_text_animation(
-        ["Test Line 1", "Test Line 2"],
-        duration=3.0,
-        animation_type="fade"
-    )
-    return f"Animation engine works: {os.path.getsize(p)//1024} KB test clip"
+    p = storage.get_json("pending.json", None)
+    q = f"; queued reel for {p.get('slot', p.get('date'))}" if p else "; nothing queued"
+    return "Supabase read/write + public URL OK" + q
 
 def c_voice():
     import voice
     p = os.path.join(tempfile.mkdtemp(), "t.mp3")
-    voice.synth("नमस्ते दोस्तों, यह एक टेस्ट है।", "narrator", p)
-    return f"Hindi voice OK ({voice.duration(p):.1f}s)"
+    words = voice.synth("Namaste doston, aaj hum AI seekhenge.", C.DEFAULT_LESSON_VOICE, p)
+    return f"voice OK ({voice.duration(p):.1f}s, {len(words)} timed words)"
+
+def c_render():
+    import edu_render, soundtrack
+    d = tempfile.mkdtemp()
+    a = os.path.join(d, "a.wav")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=220:duration=2", a], check=True)
+    scenes = [{"kind": "hook", "visual": {"text": "Test reel", "emoji": "🤖"}, "start": 0.0, "dur": 2.0}]
+    lv = soundtrack.build([a], [0.0], 2.0, os.path.join(d, "m.wav"), edu_render.FPS)
+    out = os.path.join(d, "t.mp4")
+    edu_render.render_video(scenes, os.path.join(d, "m.wav"), lv, out, "Check",
+                            words=[(0.1, 0.6, "Test"), (0.6, 1.2, "reel")])
+    return f"2D animation engine OK ({os.path.getsize(out)//1024} KB test clip)"
 
 def c_ig():
-    need("IG_USER_ID", "IG_ACCESS_TOKEN")
     import instagram
-    return f"Instagram token OK for @{instagram.check_token()}"
+    user = instagram.check_token()
+    days = instagram.token_days_left()
+    left = f", token expires in {days:.0f} days" if days is not None else ""
+    if days is not None and days < 7:
+        raise RuntimeError(f"token for @{user} expires in {days:.1f} days - renew it now (GET_NEW_TOKEN.md)")
+    return f"Instagram token OK for @{user}{left}"
 
 if __name__ == "__main__":
-    check("Secrets", c_secrets); check("FFmpeg", c_ffmpeg); check("Hindi font", c_font)
-    check("Gemini", c_gemini); check("Trends feed", c_trends, critical=False)
-    check("Telegram", c_telegram); check("Supabase storage", c_storage)
-    check("Image generation", c_image); check("Depth (3D feel)", c_depth, critical=False)
-    check("Mouth detection", c_mouth, critical=False); check("3D animation engine", c_render)
-    check("Hindi voice", c_voice, critical=False)  # Non-critical: has retry logic in production
-    check("Instagram token", c_ig, critical=False)
-    lines = []
-    for ok, name, info in results:
-        icon = "✅" if ok else ("⚠️" if ok is None else "❌")
-        lines.append(f"{icon} {name}: {info}")
+    check("Secrets", c_secrets); check("Schedule", c_schedule); check("FFmpeg", c_ffmpeg)
+    check("Fonts", c_font, critical=False); check("AI writer", c_llm); check("Telegram", c_telegram)
+    check("Supabase storage", c_storage); check("Voice", c_voice); check("2D animation", c_render)
+    check("Instagram", c_ig)
+    lines = [f"{'✅' if ok else ('⚠️' if ok is None else '❌')} {name}: {info}" for ok, name, info in results]
     report = "\n".join(lines)
     print(report)
     try:

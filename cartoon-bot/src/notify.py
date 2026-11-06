@@ -24,18 +24,21 @@ def video(path, caption, fallback_url=""):
     text(f"{caption[:600]}\n\n(Video upload to Telegram failed. Watch it here: {fallback_url})")
 
 def latest_command(since_ts):
-    """Reads recent Telegram messages from YOUR chat only. Returns 'post', 'skip' or None (latest command wins)."""
+    """Reads recent Telegram messages from YOUR chat only (latest command wins). Returns:
+    'post' (/post: publish at the slot time), 'post_now' (/postnow: publish immediately), 'skip' (/skip) or None."""
     r = requests.get(_api("getUpdates"), params={"limit": 100, "timeout": 0}, timeout=60)
     if r.status_code != 200:
         log("getUpdates failed:", r.text[:200]); return None
     cmd = None
     for u in r.json().get("result", []):
-        m = u.get("message") or {}
+        m = u.get("message") or u.get("channel_post") or {}
         if str(m.get("chat", {}).get("id")) != C.TELEGRAM_CHAT_ID() or m.get("date", 0) < since_ts:
             continue
         t = (m.get("text") or "").strip().lower().split("@")[0]
         if t in ("/post", "/approve", "/yes"):
             cmd = "post"
+        elif t in ("/postnow", "/now"):
+            cmd = "post_now"
         elif t in ("/skip", "/reject", "/no"):
             cmd = "skip"
     return cmd

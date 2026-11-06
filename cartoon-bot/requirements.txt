@@ -1,6 +1,4 @@
 requests
-edge-tts
+edge-tts>=7.0
 numpy
 pillow
-opencv-python-headless
-transformers

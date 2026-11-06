@@ -11,6 +11,12 @@ GEM_FALLBACK = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3-flash-pre
 _EXCL = re.compile(r"whisper|guard|tts|playai|embed|distil|vision|safeguard|orpheus|allam|compound", re.I)
 _cache = {}
 LAST = ""
+_DEAD = {}          # model -> failure count this run (overloaded / timing out): skipped after 2 strikes
+_GOOD = {}          # provider -> model that last worked: tried first next time
+
+
+class _Overloaded(RuntimeError):
+    """Temporary provider trouble (timeout, 429, 5xx): don't keep hammering this model."""
 
 def extract_json(text):
     text = re.sub(r"^```(?:json)?", "", (text or "").strip()).strip()
@@ -47,13 +53,19 @@ def _groq_call(model, prompt, temperature):
                              {"role": "user", "content": prompt}]}
         if json_mode:
             body["response_format"] = {"type": "json_object"}
-        r = requests.post(f"{GROQ_URL}/chat/completions", headers={"Authorization": f"Bearer {key}"}, json=body, timeout=90)
+        try:
+            r = requests.post(f"{GROQ_URL}/chat/completions", headers={"Authorization": f"Bearer {key}"}, json=body,
+                              timeout=(10, 60))
+        except requests.exceptions.RequestException as e:
+            raise _Overloaded(f"Groq {model}: {e}")
         if r.status_code == 200:
             return extract_json(r.json()["choices"][0]["message"]["content"])
         if r.status_code == 429:
-            time.sleep(min(float(r.headers.get("retry-after", 8)), 20)); raise RuntimeError(f"Groq {model} rate limited")
+            time.sleep(min(float(r.headers.get("retry-after", 8)), 20)); raise _Overloaded(f"Groq {model} rate limited")
         if r.status_code == 400 and json_mode:
             continue                                                   # this model may not support JSON mode
+        if r.status_code >= 500:
+            raise _Overloaded(f"Groq {model} {r.status_code}: {r.text[:150]}")
         raise RuntimeError(f"Groq {model} {r.status_code}: {r.text[:150]}")
     raise RuntimeError(f"Groq {model} failed")
 
@@ -82,21 +94,23 @@ def gemini_models():
     return _cache["gem"]
 
 def _gemini_call(model, prompt, temperature):
-    for _ in range(2):
+    try:
         r = requests.post(f"{GEM_URL}/models/{model}:generateContent",
                           headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"], "Content-Type": "application/json"},
                           json={"contents": [{"parts": [{"text": prompt}]}],
-                                "generationConfig": {"responseMimeType": "application/json", "temperature": temperature}}, timeout=120)
-        if r.status_code == 200:
-            parts = r.json()["candidates"][0]["content"]["parts"]
-            return extract_json("".join(p.get("text", "") for p in parts if not p.get("thought")))
-        if r.status_code not in (429, 500, 502, 503, 504):
-            break
-        time.sleep(8)
+                                "generationConfig": {"responseMimeType": "application/json", "temperature": temperature}},
+                          timeout=(10, 75))
+    except requests.exceptions.RequestException as e:
+        raise _Overloaded(f"Gemini {model}: {e}")
+    if r.status_code == 200:
+        parts = r.json()["candidates"][0]["content"]["parts"]
+        return extract_json("".join(p.get("text", "") for p in parts if not p.get("thought")))
+    if r.status_code in (429, 500, 502, 503, 504):
+        raise _Overloaded(f"Gemini {model} {r.status_code}: {r.text[:150]}")
     raise RuntimeError(f"Gemini {model} {r.status_code}: {r.text[:150]}")
 
 # ---------------- public ----------------
-def generate_json(prompt, temperature=0.7, order=("gemini", "groq")):
+def generate_json(prompt, temperature=0.7, order=("gemini", "groq"), _retry=False):
     """Try providers/models in order until one returns valid JSON. Raises if all fail (never returns junk)."""
     global LAST
     errors = []
@@ -107,14 +121,29 @@ def generate_json(prompt, temperature=0.7, order=("gemini", "groq")):
             models, call = gemini_models(), _gemini_call
         else:
             continue
+        good = _GOOD.get(prov)
+        models = ([good] if good in models else []) + [m for m in models if m != good]
         for m in models:
+            if _DEAD.get(m, 0) >= 2:
+                continue
             try:
                 out = call(m, prompt, temperature)
                 if isinstance(out, dict):
                     LAST = f"{prov}:{m}"
+                    _GOOD[prov] = m
+                    _DEAD.pop(m, None)
                     return out
                 errors.append(f"{prov}:{m} returned {type(out).__name__}, expected object")
+            except _Overloaded as e:
+                _DEAD[m] = _DEAD.get(m, 0) + 1
+                if _GOOD.get(prov) == m:
+                    _GOOD.pop(prov)
+                errors.append(f"{prov}:{m}: {str(e)[:120]}"); log(f"  {prov} {m} busy: {str(e)[:120]}")
             except Exception as e:
                 errors.append(f"{prov}:{m}: {str(e)[:120]}"); log(f"  {prov} {m} failed: {str(e)[:120]}")
-    raise RuntimeError("No AI provider produced a valid answer. " + " | ".join(errors[-4:]) if errors else
-                       "No AI key configured (set GEMINI_API_KEY and/or GROQ_API_KEY)")
+    if not errors:
+        if _DEAD and not _retry:                    # every model was benched earlier this run: give them one more go
+            _DEAD.clear()
+            return generate_json(prompt, temperature, order, _retry=True)
+        raise RuntimeError("No AI key configured (set GEMINI_API_KEY and/or GROQ_API_KEY)")
+    raise RuntimeError("No AI provider produced a valid answer. " + " | ".join(errors[-4:]))

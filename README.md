@@ -7,6 +7,8 @@ Fully automated Instagram bot that posts daily AI/ML educational lessons in Hing
 ## 🚀 **Features**
 
 - ✅ **100-Lesson Curriculum** - Complete AI/ML course (Basics → Advanced)
+- ✅ **2D Animated Teacher** - "Seekho Bot" mascot that lip-syncs, blinks, waves and points
+- ✅ **Karaoke Captions** - word-by-word highlighted speech bubble, synced to the voice
 - ✅ **Professional Animations** - 10 scene types (hook, bullets, flow, compare, network, code, stat, formula, takeaway, cta)
 - ✅ **Fact-Checked Content** - Multi-agent AI verification (3-stage validation)
 - ✅ **A/B Tested Hooks** - Generates 2 versions, picks more engaging one
@@ -14,7 +16,7 @@ Fully automated Instagram bot that posts daily AI/ML educational lessons in Hing
 - ✅ **Smart Pacing** - Complex scenes get +0.3s pause for better learning
 - ✅ **Language Modes** - Hinglish (default), English-only, or Pure Hindi
 - ✅ **Indian Voice** - en-IN-PrabhatNeural (perfect Hinglish pronunciation)
-- ✅ **Fully Automated** - Posts daily at 8 AM IST
+- ✅ **Reliable Scheduling** - Made the night before, posted at exactly 8 AM IST, never twice
 - ✅ **100% Free** - No paid APIs (Groq + Gemini)
 
 **New (Nov 2026):** Upgraded with ViMax-inspired architecture (see `VIMAX_UPGRADES.md`)
@@ -25,27 +27,27 @@ Fully automated Instagram bot that posts daily AI/ML educational lessons in Hing
 
 ```
 cartoon-bot/
-├── .github/workflows/     # GitHub Actions (automated posting)
-│   ├── daily.yml         # Main daily posting workflow
-│   ├── check.yml         # Pre-flight tests
-│   └── post.yml          # Manual posting workflow
+├── .github/workflows/
+│   ├── daily.yml          # Makes the reel the night before + backups, posts at 08:00 IST
+│   ├── post.yml           # Light poster: publishes the queued reel exactly at the slot
+│   └── check.yml          # Offline render test on every push + manual service check
 │
-├── cartoon-bot/src/       # Source code
-│   ├── lesson_main.py    # Main entry point
-│   ├── syllabus.py       # 100-lesson curriculum
-│   ├── lesson_script.py  # AI script writer + fact-checker
-│   ├── edu_render.py     # Professional animation engine
-│   ├── llm.py           # Smart LLM orchestration
-│   ├── voice.py         # Text-to-speech (Hinglish)
-│   ├── instagram.py     # Instagram posting API
-│   ├── storage.py       # Supabase file storage
-│   ├── config.py        # Configuration
-│   └── util.py          # Helper functions
-│
-├── README.md            # This file
-├── UPGRADE_COMPLETE.md  # Detailed documentation
-├── refresh_token.sh     # Instagram token refresh script
-└── .gitignore          # Git ignore rules
+├── cartoon-bot/src/
+│   ├── lesson_main.py     # Generator entry point (slot-aware, runs once per day)
+│   ├── publisher.py       # The ONLY Instagram posting path (slot timing, lock, dedupe)
+│   ├── post_pending.py    # Poster entry point
+│   ├── slots.py           # Posting-slot maths (POST_TIME / TIMEZONE)
+│   ├── syllabus.py        # 100-lesson curriculum + weekend fun facts
+│   ├── lesson_script.py   # AI script writer + fact-checker
+│   ├── llm.py             # Gemini / Groq with fail-fast fallback
+│   ├── edu_render.py      # 2D animation engine (scenes, captions, transitions)
+│   ├── mascot.py          # "Seekho Bot" 2D cartoon teacher (lip-sync, blinks, gestures)
+│   ├── soundtrack.py      # One continuous audio track + ducked music bed + lip-sync levels
+│   ├── voice.py           # Edge TTS with word timings
+│   ├── instagram.py / storage.py / notify.py / config.py / util.py
+│   └── check.py           # Pre-flight check of every service
+├── cartoon-bot/tests/offline_test.py   # No-keys render + schedule tests
+└── refresh_token.sh       # Token refresh (reads secrets from env, never hard-code them)
 ```
 
 ---
@@ -57,21 +59,14 @@ cartoon-bot/
 Set these in: Settings → Secrets and variables → Actions → New secret
 
 ```bash
-# AI APIs (Free)
-GROQ_API_KEY=your_groq_key
+GROQ_API_KEY=your_groq_key          # AI writer (at least one of Groq / Gemini)
 GEMINI_API_KEY=your_gemini_key
-
-# Instagram
 IG_USER_ID=your_instagram_user_id
 IG_ACCESS_TOKEN=your_instagram_token
-
-# Storage (Supabase - Free tier)
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_SERVICE_KEY=your_service_key
-SUPABASE_BUCKET=cartoon-reels
-
-# Notifications (Optional)
-TELEGRAM_BOT_TOKEN=your_bot_token
+SUPABASE_BUCKET=cartoon-reels       # must be a PUBLIC bucket
+TELEGRAM_BOT_TOKEN=your_bot_token   # previews + /post /postnow /skip commands
 TELEGRAM_CHAT_ID=your_chat_id
 ```
 
@@ -80,26 +75,46 @@ TELEGRAM_CHAT_ID=your_chat_id
 Settings → Secrets and variables → Actions → Variables
 
 ```bash
-REVIEW_MODE=auto          # auto posting (or 'approve' for manual)
-REVIEW_HOURS=2            # hours to wait for approval
+REVIEW_MODE=auto          # auto | auto_unless_skip | approve
+POST_TIME=08:00           # daily posting time (24h)
+TIMEZONE=Asia/Kolkata
+REVIEW_HOURS=2            # auto_unless_skip: minimum time to /skip after the preview
+MASCOT=true               # animated 2D teacher character
+MUSIC=true                # soft background music (drop your own .mp3 in cartoon-bot/assets/music)
+LANGUAGE_MODE=hinglish    # hinglish | english_only | hindi_only
 ```
 
 ---
 
 ## 🎯 **How It Works**
 
-### **Daily Workflow (8 AM IST)**
+### **Scheduling (why it now really posts at 8 AM)**
 
-1. **Check Day** - Weekday (lesson) or weekend (fun fact)
-2. **Get Next Topic** - Sequential from 100-lesson curriculum
-3. **Generate Script** - AI writes Hinglish script with proper scene types
-4. **Fact-Check** - Second AI verifies accuracy (rejects if wrong)
-5. **Generate Voice** - Indian voice (Prabhat) pronounces Hindi correctly
-6. **Render Animations** - Professional 10-scene animation system
-7. **Assemble Video** - FFmpeg combines all scenes
-8. **Upload** - Saves to Supabase
-9. **Post** - Automatically posts to Instagram
-10. **Notify** - Sends Telegram notification
+GitHub's cron is best-effort: the old single `08:00` trigger was routinely **hours late** (e.g. it started at
+15:03 IST) and most 30-minute post triggers were skipped. So the bot no longer renders *at* 8 AM:
+
+1. **20:17 IST (night before)** – `daily.yml` makes tomorrow's reel and queues it for **08:00** (backups at
+   22:53, 02:41 and 05:23 IST; each later run sees the reel is already queued and exits in seconds).
+2. You get a **Telegram preview** of the video the evening before.
+3. **From ~02:30 IST** – any `post.yml` (every 20 min) or backup run that starts within 5.5 h of the slot
+   **stays alive and publishes at exactly 08:00**.
+4. If everything is late, the reel still posts as soon as a run happens (up to 10 h after the slot).
+5. **Never twice:** one reel per slot (keyed by date), a storage lock, and a check of the account's latest
+   posts before publishing. History is written only after a successful post.
+
+Telegram commands: `/post` (approve for the slot), `/postnow` (publish immediately), `/skip` (discard).
+Manual runs: **Daily cartoon reel → post_now** makes and posts one right away; **Post approved reel →
+force_post** publishes the queued reel now.
+
+### **Content pipeline**
+
+1. **Pick topic** – weekday of the *posting* day = next lesson, weekend = AI fun fact
+2. **Write + fact-check** – A/B-tested hook, second AI verifies accuracy
+3. **Voice** – Indian voice with **word-level timings**
+4. **Soundtrack** – one continuous track + generated music bed ducked under the voice (−14 LUFS)
+5. **2D animation** – single-pass render: animated scenes, **Seekho Bot** mascot lip-syncing the narration,
+   karaoke speech-bubble captions, crossfade transitions, cover frame
+6. **Queue → post at the slot → Telegram confirmation**
 
 ---
 

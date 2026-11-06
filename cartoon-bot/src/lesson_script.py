@@ -193,15 +193,19 @@ def _make(prompt_fn, facts, title_en, min_scenes, max_scenes, attempts=4):
         
         # First attempt: generate TWO versions in parallel and pick better one (A/B testing)
         if n == 1:
-            try:
-                script_a = validate(llm.generate_json(prompt_fn(fb), temperature=0.7), min_scenes, max_scenes)
-                script_b = validate(llm.generate_json(prompt_fn(fb), temperature=0.8), min_scenes, max_scenes)
-                
-                # Pick better hook using LLM judge
-                script = _select_better_script(script_a, script_b, title_en)
-                log(f"  attempt 1: A/B tested 2 versions, selected better one")
-            except ValueError as e:
-                feedback = str(e); log(f"  attempt {n} rejected (format): {e}"); continue
+            versions, err = [], None
+            for temp in (0.7, 0.85):
+                try:
+                    versions.append(validate(llm.generate_json(prompt_fn(fb), temperature=temp), min_scenes, max_scenes))
+                except ValueError as e:
+                    err = e; log(f"  attempt 1 variant rejected (format): {e}")
+            if not versions:
+                feedback = str(err); continue
+            if len(versions) == 2:
+                script = _select_better_script(versions[0], versions[1], title_en)
+                log("  attempt 1: A/B tested 2 versions, selected better one")
+            else:
+                script = versions[0]
         else:
             try:
                 script = validate(llm.generate_json(prompt_fn(fb), temperature=0.7), min_scenes, max_scenes)

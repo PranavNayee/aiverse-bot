@@ -1,40 +1,34 @@
 #!/bin/bash
-# Instagram Access Token Refresh Script
+# Instagram access token refresh (exchanges a token for a 60-day long-lived one).
+# NEVER put real secrets in this file - the repo is public. Pass them as environment variables:
+#   FB_APP_ID=... FB_APP_SECRET=... OLD_TOKEN=... ./refresh_token.sh
+set -euo pipefail
 
-APP_ID="1445425344359379"
-APP_SECRET="cac042373d9d2c94c86c0a2d6229621f"
-OLD_TOKEN="EAAUim1AzK9MBSxZCYAYzfMWXZB6yrCI68pJ8OAfJ2VrwhmQixdb1CZCfpHPAMDlKCkbLplSPVU2Wh6Aaguus0h9oBeYmbhCuGiZBy1G6deTYrXzZBOHitzwvBvBuncBKOb4UOzEs0GGjFYNul7OZBIZBNYuu9SNUAkv7ONVvpioZAudZBWu7eregpWsKEaXtW6uXOZAta8hBuy7Er9ZAs9bxG79bpUrJ3gIFBg21D7rs2croTMq8TI0FdiybBIpyoRLgA4TKeUkw6QlUKarS6lewpN5drVihgZDZD"
+: "${FB_APP_ID:?set FB_APP_ID (Meta app id)}"
+: "${FB_APP_SECRET:?set FB_APP_SECRET (Meta app secret)}"
+: "${OLD_TOKEN:?set OLD_TOKEN (current Instagram/Facebook user token)}"
 
 echo "🔄 Refreshing Instagram Access Token..."
-echo ""
+RESPONSE=$(curl -s -G "https://graph.facebook.com/v21.0/oauth/access_token" \
+  --data-urlencode "grant_type=fb_exchange_token" \
+  --data-urlencode "client_id=${FB_APP_ID}" \
+  --data-urlencode "client_secret=${FB_APP_SECRET}" \
+  --data-urlencode "fb_exchange_token=${OLD_TOKEN}")
 
-# Try to exchange for long-lived token (60 days)
-RESPONSE=$(curl -s "https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${APP_ID}&client_secret=${APP_SECRET}&fb_exchange_token=${OLD_TOKEN}")
-
-echo "Response:"
-echo "$RESPONSE" | jq . 2>/dev/null || echo "$RESPONSE"
-echo ""
-
-# Extract new token
-NEW_TOKEN=$(echo "$RESPONSE" | jq -r '.access_token // empty' 2>/dev/null)
+NEW_TOKEN=$(echo "$RESPONSE" | jq -r '.access_token // empty' 2>/dev/null || true)
 
 if [ -n "$NEW_TOKEN" ]; then
-    echo "✅ New Token Generated!"
-    echo ""
-    echo "📋 Copy this token:"
-    echo "$NEW_TOKEN"
-    echo ""
-    echo "🔧 Update GitHub Secret:"
-    echo "gh secret set IG_ACCESS_TOKEN --body \"$NEW_TOKEN\""
+    echo "✅ New token generated. Saving it straight into the GitHub secret (not printed)..."
+    if command -v gh >/dev/null; then
+        printf '%s' "$NEW_TOKEN" | gh secret set IG_ACCESS_TOKEN
+        echo "✅ IG_ACCESS_TOKEN updated."
+    else
+        echo "gh CLI not found. Run:  gh secret set IG_ACCESS_TOKEN   and paste the token from:"
+        echo "$RESPONSE" | jq . 2>/dev/null || echo "$RESPONSE"
+    fi
 else
-    echo "❌ Token refresh failed. You need to generate a new token from Graph API Explorer."
-    echo ""
-    echo "📝 Follow these steps:"
-    echo "1. Go to: https://developers.facebook.com/tools/explorer"
-    echo "2. Select your app: cartoon"
-    echo "3. Click 'Get User Access Token'"
-    echo "4. Select permissions: instagram_basic, instagram_content_publish"
-    echo "5. Click 'Generate Access Token'"
-    echo "6. Copy the new token"
-    echo "7. Run: gh secret set IG_ACCESS_TOKEN --body \"YOUR_NEW_TOKEN\""
+    echo "❌ Token refresh failed:"
+    echo "$RESPONSE" | jq . 2>/dev/null || echo "$RESPONSE"
+    echo "Generate a new token in Graph API Explorer (see GET_NEW_TOKEN.md)."
+    exit 1
 fi

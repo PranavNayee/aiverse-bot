@@ -46,7 +46,7 @@ cd /Users/pranavdipakbhainayee/Downloads/cartoon-bot
 
 SHORT_TOKEN="PASTE_YOUR_SHORT_TOKEN_HERE"
 
-curl "https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=1445425344359379&client_secret=cac042373d9d2c94c86c0a2d6229621f&fb_exchange_token=$SHORT_TOKEN"
+curl "https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=1445425344359379&client_secret=YOUR_APP_SECRET&fb_exchange_token=$SHORT_TOKEN"
 ```
 
 This will return:

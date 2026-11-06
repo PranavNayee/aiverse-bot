@@ -160,9 +160,17 @@ def get_lesson_by_number(n):
         return LESSONS[n - 1]
     return None
 
+def _last(history, kind, field):
+    for h in reversed(history):
+        if h.get("type") == kind and isinstance(h.get(field), int):
+            return h[field]
+    return None
+
 def get_next_lesson(history):
-    """Lesson number = lessons already posted + 1. After lesson 100 the course starts again as a revision round."""
-    done = len([h for h in history if h.get("type") == "lesson"])
+    """Next lesson = last POSTED lesson number + 1 (history is trimmed, so counting entries would break).
+    After the last lesson the course starts again as a revision round."""
+    last = _last(history, "lesson", "lesson_num")
+    done = last if last is not None else len([h for h in history if h.get("type") == "lesson"])
     num = done % TOTAL + 1
     lesson = LESSONS[num - 1]
     nxt = LESSONS[num % TOTAL]
@@ -170,9 +178,10 @@ def get_next_lesson(history):
     return lesson, num, nxt
 
 def get_fun_fact(history):
-    done = len([h for h in history if h.get("type") == "fun_fact"])
-    title, fact = FUN_FACTS[done % len(FUN_FACTS)]
-    return {"title": title, "facts": fact}
+    last = _last(history, "fun_fact", "fact_idx")
+    idx = (last + 1 if last is not None else len([h for h in history if h.get("type") == "fun_fact"])) % len(FUN_FACTS)
+    title, fact = FUN_FACTS[idx]
+    return {"title": title, "facts": fact, "idx": idx}
 
 if __name__ == "__main__":
     from collections import Counter

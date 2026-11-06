@@ -44,3 +44,6 @@ Thumbs.db
 # Zip files
 *.zip
 files/
+
+# Local test output
+test_work/
