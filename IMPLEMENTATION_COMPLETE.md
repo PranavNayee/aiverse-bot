@@ -263,7 +263,7 @@ gh workflow run daily.yml
 ### Normal Operation (No changes needed)
 ```bash
 # Bot runs automatically every day at 8 AM IST
-# GitHub Actions: https://github.com/PranavNayee/cartoon-bot/actions
+# GitHub Actions: https://github.com/PranavNayee/aiverse-bot/actions
 ```
 
 ### Switch to English-Only
@@ -396,7 +396,7 @@ Your bot is now **significantly more powerful** with ViMax-inspired architecture
 - **Technical details**: `VIMAX_UPGRADES.md`
 - **User guide**: `QUICK_REFERENCE.md`
 - **Token issues**: `INSTAGRAM_TOKEN_GUIDE.md`
-- **Actions logs**: https://github.com/PranavNayee/cartoon-bot/actions
+- **Actions logs**: https://github.com/PranavNayee/aiverse-bot/actions
 
 ---
 

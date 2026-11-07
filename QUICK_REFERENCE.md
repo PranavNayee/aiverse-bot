@@ -36,7 +36,7 @@ LANGUAGE_MODE=hindi_only     # Pure Hindi (Hindi voice)
 ## 🔧 How to Switch Languages
 
 ### Option 1: GitHub Web UI (Easiest)
-1. Go to: https://github.com/PranavNayee/cartoon-bot/settings/variables/actions
+1. Go to: https://github.com/PranavNayee/aiverse-bot/settings/variables/actions
 2. Click "New repository variable"
 3. Name: `LANGUAGE_MODE`
 4. Value: `english_only` (or `hinglish` or `hindi_only`)
@@ -61,7 +61,7 @@ gh variable set LANGUAGE_MODE --body "english_only"
 ## 🔍 Monitor Performance
 
 ### Check GitHub Actions
-https://github.com/PranavNayee/cartoon-bot/actions
+https://github.com/PranavNayee/aiverse-bot/actions
 
 ### Check Logs
 Look for these indicators of ViMax upgrades working:
@@ -80,7 +80,7 @@ Look for these indicators of ViMax upgrades working:
 ## 🐛 Troubleshooting
 
 ### Lesson Generation Failed
-1. Check GitHub Actions logs: https://github.com/PranavNayee/cartoon-bot/actions
+1. Check GitHub Actions logs: https://github.com/PranavNayee/aiverse-bot/actions
 2. Look for error in Telegram notifications
 3. Common fixes:
    - Instagram token expired → Run `refresh_token.sh`
@@ -97,7 +97,7 @@ Look for these indicators of ViMax upgrades working:
 ### Video Not Posting
 1. Check `REVIEW_MODE` variable (should be `auto`)
 2. Check Instagram token validity: https://developers.facebook.com/tools/debug/accesstoken/
-3. Check workflow runs: https://github.com/PranavNayee/cartoon-bot/actions
+3. Check workflow runs: https://github.com/PranavNayee/aiverse-bot/actions
 
 ---
 
@@ -178,7 +178,7 @@ Look for these indicators of ViMax upgrades working:
 
 ## 📞 Need Help?
 
-1. Check logs: https://github.com/PranavNayee/cartoon-bot/actions
+1. Check logs: https://github.com/PranavNayee/aiverse-bot/actions
 2. Check Telegram notifications
 3. Review `VIMAX_UPGRADES.md` for technical details
 4. Review `INSTAGRAM_TOKEN_GUIDE.md` for token issues

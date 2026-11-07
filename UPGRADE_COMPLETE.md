@@ -230,7 +230,7 @@ Your AI Seekho education bot has been upgraded from basic animations to a **prof
 ### Monitoring:
 - Check Instagram @storysfrombittu daily at 8 AM IST
 - Telegram notifications for success/failure
-- GitHub Actions history: https://github.com/PranavNayee/cartoon-bot/actions
+- GitHub Actions history: https://github.com/PranavNayee/aiverse-bot/actions
 
 ### Improvements You Can Make Later:
 1. Add more animation variations
@@ -248,7 +248,7 @@ Your AI Seekho education bot has been upgraded from basic animations to a **prof
 
 ### If Bot Fails:
 1. **Check Telegram** - Error notifications sent there
-2. **Check GitHub Actions** - View logs at https://github.com/PranavNayee/cartoon-bot/actions
+2. **Check GitHub Actions** - View logs at https://github.com/PranavNayee/aiverse-bot/actions
 3. **Common Issues:**
    - Gemini quota exhausted → Wait 24 hours or add more API keys
    - Instagram token expired → Refresh token (expires every 60 days)
