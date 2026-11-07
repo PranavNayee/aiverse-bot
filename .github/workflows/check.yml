@@ -2,6 +2,10 @@ name: Pre-flight check
 on:
   workflow_dispatch:
     inputs:
+      ig_admin:
+        description: "Instagram admin command, e.g. 'post-lesson 1'"
+        type: string
+        default: ""
       yt_admin:
         description: "YouTube admin command, e.g. 'delete ID1 ID2' or 'post-lesson 1'"
         type: string
@@ -37,6 +41,18 @@ jobs:
         run: bash .github/setup-media.sh
       - run: pip install -r cartoon-bot/requirements.txt
       - run: python cartoon-bot/tests/offline_test.py
+      - name: Instagram admin
+        if: github.event_name == 'workflow_dispatch' && inputs.ig_admin != ''
+        run: python cartoon-bot/tools/ig_admin.py ${{ inputs.ig_admin }}
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET }}
+          PYTHONPATH: cartoon-bot/src
       - name: YouTube admin
         if: github.event_name == 'workflow_dispatch' && inputs.yt_admin != ''
         run: python cartoon-bot/tools/yt_admin.py ${{ inputs.yt_admin }}
