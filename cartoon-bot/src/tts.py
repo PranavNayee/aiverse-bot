@@ -143,7 +143,12 @@ def _gemini_one(text, path, max_secs=None, paragraphs=False):
             except requests.exceptions.RequestException as e:
                 last = e; time.sleep(5); continue
             if r.status_code == 200:
-                part = r.json()["candidates"][0]["content"]["parts"][0]["inlineData"]
+                try:
+                    part = r.json()["candidates"][0]["content"]["parts"][0]["inlineData"]
+                except (KeyError, IndexError, TypeError, ValueError):
+                    cand = (r.json().get("candidates") or [{}])[0] if r.text.startswith("{") else {}
+                    last = f"{model}: no audio returned (finishReason {cand.get('finishReason', '?')})"
+                    time.sleep(3); continue
                 rate = int((re.search(r"rate=(\d+)", part.get("mimeType", "")) or [0, 24000])[1])
                 pcm = np.frombuffer(base64.b64decode(part["data"]), dtype=np.int16).astype(np.float32) / 32768.0
                 if len(pcm) < rate * 0.4:
@@ -270,6 +275,30 @@ def _gaps(x, sr, min_gap=0.32):
     return gaps
 
 
+def _match_gaps(gaps, expected, pos=lambda t: t):
+    """Pick one pause per scene boundary, in order, closest to where the script says the boundary should be
+    (longer pauses preferred). Dynamic programming over the sorted pauses."""
+    m, k = len(gaps), len(expected)
+    INF = float("inf")
+    cost = lambda gi, ki: abs(pos((gaps[gi][0] + gaps[gi][1]) / 2) - expected[ki]) - 0.15 * (gaps[gi][1] - gaps[gi][0])
+    best = [[INF] * m for _ in range(k)]
+    back = [[-1] * m for _ in range(k)]
+    for gi in range(m):
+        best[0][gi] = cost(gi, 0)
+    for ki in range(1, k):
+        run, arg = INF, -1
+        for gi in range(m):
+            if gi - 1 >= 0 and best[ki - 1][gi - 1] < run:
+                run, arg = best[ki - 1][gi - 1], gi - 1
+            if arg >= 0:
+                best[ki][gi] = run + cost(gi, ki); back[ki][gi] = arg
+    gi = min(range(m), key=lambda g: best[k - 1][g])
+    picked = []
+    for ki in range(k - 1, -1, -1):
+        picked.append(gaps[gi]); gi = back[ki][gi]
+    return picked[::-1]
+
+
 def _gemini_reel(scenes):
     """ONE request for the whole reel (saves free quota ~7x and gives one continuous, consistent performance),
     then split into scenes at the paragraph pauses. Raises if the split doesn't match the script."""
@@ -282,13 +311,20 @@ def _gemini_reel(scenes):
     gaps = [g for g in _gaps(x, sr) if g[0] > 0.3 and g[1] < len(x) / sr - 0.3]
     if len(gaps) < n - 1:
         raise RuntimeError(f"whole-reel voice: found {len(gaps)} pauses for {n} scenes")
-    cuts = sorted(sorted(gaps, key=lambda g: g[1] - g[0], reverse=True)[:n - 1])
-    bounds = [0.0] + [(a + b) / 2 for a, b in cuts] + [len(x) / sr]
     total, tw = len(x) / sr, float(sum(words))
-    for i in range(n):                                   # each piece must roughly match its scene's length
-        ratio = (bounds[i + 1] - bounds[i]) / (total * words[i] / tw)
-        if not 0.45 <= ratio <= 2.2:
-            raise RuntimeError(f"whole-reel voice: scene {i} split looks wrong (ratio {ratio:.2f})")
+    hop = int(0.01 * sr)                                 # work in SPEECH time so pause lengths can't fool us
+    env = np.array([np.sqrt(np.mean(x[i:i + hop] ** 2)) for i in range(0, max(len(x) - hop, 1), hop)])
+    voiced = env > max(0.02 * float(env.max() or 1), 0.004)
+    v_tot = float(voiced.sum()) or 1.0
+    cum = np.concatenate([[0], np.cumsum(voiced)])
+    spoken_at = lambda t: float(cum[min(len(cum) - 1, int(t * 100))]) / 100
+    cuts = _match_gaps(gaps, [v_tot / 100 * sum(words[:k + 1]) / tw for k in range(n - 1)], spoken_at)
+    bounds = [0.0] + [(a + b) / 2 for a, b in cuts] + [total]
+    for i in range(n):
+        v_i = float(voiced[int(bounds[i] * 100):int(bounds[i + 1] * 100)].sum())
+        ratio = (v_i / v_tot) / (words[i] / tw)
+        if not 0.6 <= ratio <= 1.65:
+            raise RuntimeError(f"whole-reel voice: scene {i} split looks wrong (speech ratio {ratio:.2f})")
     out = []
     for i, sc in enumerate(scenes):
         seg = _trim(x[int(bounds[i] * sr):int(bounds[i + 1] * sr)], sr, lead=0.08, tail=0.25)
