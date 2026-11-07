@@ -123,8 +123,8 @@ DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
 def content_kind(slot):
-    want = os.environ.get("CONTENT_TYPE", "auto").strip().lower()      # auto | lesson | trick | fun_fact
-    if want in ("lesson", "trick", "fun_fact"):
+    want = os.environ.get("CONTENT_TYPE", "auto").strip().lower()      # auto | lesson | trick | news | fun_fact
+    if want in ("lesson", "trick", "news", "fun_fact"):
         return want
     plan = C.CONTENT_PLAN if slots.index(slot) == 0 else C.CONTENT_PLAN_PM
     return plan.get(DAYS[slot.weekday()], "lesson").strip()
