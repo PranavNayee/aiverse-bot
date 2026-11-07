@@ -35,7 +35,7 @@ jobs:
       - run: python cartoon-bot/tests/offline_test.py
       - name: YouTube test upload (private)
         if: github.event_name == 'workflow_dispatch' && inputs.youtube_test
-        run: python cartoon-bot/tools/youtube_test.py
+        run: python cartoon-bot/tools/yt_upload_check.py
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}

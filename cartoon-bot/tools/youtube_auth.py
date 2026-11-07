@@ -1,6 +1,7 @@
 """One-time YouTube authorisation. Run on YOUR computer:
 
-    python cartoon-bot/tools/youtube_auth.py CLIENT_ID CLIENT_SECRET
+    python cartoon-bot/tools/youtube_auth.py client_secret_XXXX.json      (the file downloaded from Google Cloud)
+    python cartoon-bot/tools/youtube_auth.py CLIENT_ID CLIENT_SECRET       (or paste the two values)
 
 Before that, in https://console.cloud.google.com : create a project -> enable "YouTube Data API v3" ->
 OAuth consent screen (External, add yourself as a test user, then "Publish app") -> Credentials ->
@@ -15,9 +16,14 @@ SCOPE = ("https://www.googleapis.com/auth/youtube.upload "      # upload Shorts
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):       # the client_secret_*.json file from Google Cloud
+        d = json.load(open(sys.argv[1]))
+        d = d.get("installed") or d.get("web") or d
+        cid, secret = d["client_id"], d["client_secret"]
+    elif len(sys.argv) == 3:
+        cid, secret = sys.argv[1], sys.argv[2]
+    else:
         sys.exit(__doc__)
-    cid, secret = sys.argv[1], sys.argv[2]
     redirect = f"http://127.0.0.1:{PORT}"
     got = {}
 

@@ -47,3 +47,7 @@ files/
 
 # Local test output
 test_work/
+
+# Google OAuth client files (NEVER commit - the repo is public)
+client_secret*.json
+*credentials*.json
