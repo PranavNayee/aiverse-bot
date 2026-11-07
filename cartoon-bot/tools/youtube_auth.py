@@ -10,7 +10,8 @@ secrets (via the gh CLI) - it is never printed."""
 import http.server, json, subprocess, sys, threading, urllib.parse, urllib.request, webbrowser
 
 PORT = 8765
-SCOPE = "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly"
+SCOPE = ("https://www.googleapis.com/auth/youtube.upload "      # upload Shorts
+         "https://www.googleapis.com/auth/youtube.force-ssl")    # playlists + replying to comments
 
 
 def main():
@@ -46,6 +47,13 @@ def main():
     tok = json.loads(urllib.request.urlopen("https://oauth2.googleapis.com/token", body).read())
     if "refresh_token" not in tok:
         sys.exit(f"No refresh token returned: {tok}")
+    req = urllib.request.Request("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true",
+                                 headers={"Authorization": "Bearer " + tok["access_token"]})
+    chans = json.loads(urllib.request.urlopen(req).read()).get("items", [])
+    name = chans[0]["snippet"]["title"] if chans else "?"
+    print(f"Connected YouTube channel: {name}")
+    if input(f"Post AIVerse Shorts to '{name}'? Type yes to save: ").strip().lower() != "yes":
+        sys.exit("Not saved. Run again and pick the right channel.")
     for name, val in (("YT_CLIENT_ID", cid), ("YT_CLIENT_SECRET", secret), ("YT_REFRESH_TOKEN", tok["refresh_token"])):
         subprocess.run(["gh", "secret", "set", name], input=val.encode(), check=True)
     print("✅ Saved YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN to GitHub secrets. Shorts cross-posting is on.")

@@ -154,6 +154,55 @@ def reply_comments(days=14):
     return sent, err
 
 
+# ---------------------------------------------------------------- YouTube comment replies
+def yt_reply_comments():
+    import youtube
+    if not youtube.enabled():
+        return 0, None
+    tok = youtube._access_token()
+    me, threads = youtube.recent_comment_threads(tok)
+    eng = storage.get_json("engage.json", {})
+    done = set(eng.get("yt_replied", []))
+    by_vid = {h.get("youtube_id"): h for h in storage.get_json("history.json", []) if h.get("youtube_id")}
+    lang = "English" if C.LANGUAGE_MODE == "english_only" else "Hinglish"
+    sent = 0
+    for th in threads:
+        if sent >= MAX_REPLIES:
+            break
+        tid = th["id"]; top = th["snippet"]["topLevelComment"]["snippet"]
+        author_ch = (top.get("authorChannelId") or {}).get("value")
+        if tid in done or author_ch == me:
+            continue
+        done.add(tid)
+        if any(((r["snippet"].get("authorChannelId") or {}).get("value")) == me for r in (th.get("replies") or {}).get("comments", [])):
+            continue
+        text, user = (top.get("textOriginal") or "").strip(), (top.get("authorDisplayName") or "").lstrip("@")
+        h = by_vid.get(th["snippet"].get("videoId"), {})
+        kw, freebie = (h.get("keyword") or "").strip(), (h.get("freebie") or "").strip()
+        msg = None
+        if kw and freebie and re.search(rf"\b{re.escape(kw)}\b", text, re.I):
+            msg = INTROS[sum(map(ord, user)) % len(INTROS)].format(user=user) + "\n\n" + freebie
+        elif text and not re.search(r"https?://|www\.", text) and len(text) <= 600:
+            try:
+                d = llm.generate_json(REPLY_PROMPT.format(name=C.SERIES_NAME, lang=lang, topic=h.get("topic", ""),
+                                                          user=user, text=text[:500]), temperature=0.5)
+                if d.get("reply") and d.get("text"):
+                    msg = re.sub(r"https?://\S+", "", str(d["text"])).strip()[:300]
+            except Exception as e:
+                log("YT reply writer failed:", e)
+        if msg:
+            try:
+                youtube.reply(tok, tid, msg); sent += 1; time.sleep(3)
+                log(f"  YT replied to {user}: {msg[:60]}")
+            except Exception as e:
+                eng["yt_replied"] = list(done)[-3000:]; storage.put_json("engage.json", eng)
+                return sent, str(e)
+    eng["yt_replied"] = list(done)[-3000:]
+    storage.put_json("engage.json", eng)
+    log(f"YouTube: replied to {sent} comments")
+    return sent, None
+
+
 # ---------------------------------------------------------------- weekly report
 def weekly_report(stats):
     week_ago = time.time() - 7 * 86400
@@ -201,6 +250,12 @@ def main():
                 notes.append(f"Comment replies unavailable: {err[:200]}\n→ Give the token the 'instagram_manage_comments' permission.")
         except Exception as e:
             notes.append(f"Comment replies failed: {str(e)[:200]}")
+        try:
+            _, err = yt_reply_comments()
+            if err:
+                notes.append(f"YouTube comment replies unavailable: {err[:200]}")
+        except Exception as e:
+            notes.append(f"YouTube comment replies failed: {str(e)[:200]}")
     # weekly report once per ISO week, on Sunday evening (local time)
     now = slots.now()
     eng = storage.get_json("engage.json", {})

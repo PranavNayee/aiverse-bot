@@ -43,4 +43,7 @@ jobs:
           AUTO_REPLY: ${{ vars.AUTO_REPLY || 'true' }}
           TIMEZONE: ${{ vars.TIMEZONE || 'Asia/Kolkata' }}
           FORCE_REPORT: ${{ inputs.force_report || 'false' }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           PYTHONPATH: cartoon-bot/src

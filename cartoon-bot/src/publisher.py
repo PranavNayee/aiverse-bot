@@ -89,6 +89,7 @@ def publish(p, force=False):
         try:
             p["youtube_id"] = youtube.upload(p["video_url"], p["caption"], p.get("headline"), p.get("topic"),
                                              re.findall(r"#\w+", p["caption"]))
+            youtube.add_to_playlist(p["youtube_id"], p.get("type"))
             yt = f"\n▶️ YouTube Short: https://youtube.com/shorts/{p['youtube_id']}"
         except Exception as e:
             log("YouTube cross-post failed:", e)
