@@ -9,6 +9,7 @@ ch = youtube._api("GET", "channels", tok, params={"part": "snippet", "mine": "tr
 print("Connected channel:", ch)
 if ch.strip().lower() != os.environ.get("YT_EXPECTED_CHANNEL", "AIVerse").lower():
     sys.exit(f"Refusing to upload: connected channel is {ch!r}")
-vid = youtube.upload("test_work/reel.mp4", "Test upload from AIVerse Bot (private).", "AIVerse bot test upload",
-                     "test", ["#aiverse"])
+path = sys.argv[1] if len(sys.argv) > 1 else "test_work/reel.mp4"
+title = sys.argv[2] if len(sys.argv) > 2 else "AIVerse bot test upload"
+vid = youtube.upload(path, "Private preview from AIVerse Bot.", title, "test", ["#aiverse"])
 print("Uploaded PRIVATE test Short:", f"https://youtube.com/shorts/{vid}")

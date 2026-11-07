@@ -32,6 +32,10 @@ on:
         description: "Make the reel and send it to Telegram only (do NOT post)"
         type: boolean
         default: false
+      youtube_preview:
+        description: "With dry_run: also upload the reel to YouTube as PRIVATE"
+        type: boolean
+        default: false
       strict_voice:
         description: "Require the human-like voice (fail instead of using the robotic Edge voice)"
         type: boolean
@@ -103,6 +107,15 @@ jobs:
           CONTENT_TYPE: ${{ inputs.content || 'auto' }}
           FRESH_START: ${{ inputs.fresh_start || 'false' }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          PYTHONPATH: cartoon-bot/src
+      - name: YouTube private preview (dry runs)
+        if: ${{ inputs.dry_run && inputs.youtube_preview }}
+        run: python cartoon-bot/tools/yt_upload_check.py work/final.mp4 "AIVerse preview (private) - real voice"
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          LANGUAGE_MODE: ${{ vars.LANGUAGE_MODE || 'hinglish' }}
           PYTHONPATH: cartoon-bot/src
       - name: Save preview video (dry runs)
         if: ${{ always() && inputs.dry_run }}
