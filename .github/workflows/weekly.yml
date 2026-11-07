@@ -10,7 +10,7 @@ on:
         type: boolean
         default: false
 permissions:
-  contents: read
+  contents: write         # for the heartbeat commit below
 concurrency:
   group: reel-weekly
   cancel-in-progress: false
@@ -48,3 +48,12 @@ jobs:
           TIMEZONE: ${{ vars.TIMEZONE || 'Asia/Kolkata' }}
           FORCE_WEEKLY: ${{ inputs.force || 'false' }}
           PYTHONPATH: cartoon-bot/src
+      - name: Heartbeat commit (GitHub pauses schedules after 60 days without commits)
+        if: always()
+        run: |
+          date -u +"%Y-%m-%dT%H:%MZ" > .github/heartbeat
+          git config user.name "aiverse-bot"
+          git config user.email "aiverse-bot@users.noreply.github.com"
+          git add .github/heartbeat
+          git commit -m "heartbeat: keep scheduled workflows active [skip ci]" || exit 0
+          git push
