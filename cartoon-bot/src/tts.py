@@ -102,12 +102,14 @@ def gemini_tts_models():
     def rank(n):                                        # newest version first, flash before pro (quota)
         v = re.search(r"(\d+(?:\.\d+)?)", n)
         return (-(float(v.group(1)) if v else 0), "lite" in n, "pro" in n, "preview" in n, n)
-    _gem_models = forced or sorted(names, key=rank)[:3] or ["gemini-2.5-flash-preview-tts"]
+    ranked = sorted(names, key=rank)
+    full = [n for n in ranked if "lite" not in n]
+    _gem_models = forced or (full or ranked)[:3] or ["gemini-2.5-flash-preview-tts"]
     log("Gemini TTS models:", _gem_models)
     return _gem_models
 
 
-def _direction(text, minimal=False):
+def _direction(text, minimal=False, paragraphs=False):
     """Gemini TTS speaks the TRANSCRIPT only; the notes above it steer the performance."""
     if minimal:
         return f"Say naturally, like a friendly human teacher: {text}"
@@ -119,7 +121,8 @@ def _direction(text, minimal=False):
     return ("Read ONLY the text under TRANSCRIPT aloud. Never read these notes.\n"
             "# AUDIO PROFILE: a warm, confident young Indian male tech teacher making an Instagram reel.\n"
             f"# DIRECTOR'S NOTES\nStyle: real human, conversational, expressive, energetic but clear, smiling. "
-            f"Never robotic.\nAccent: {accent}\nPace: natural, short pauses at commas and full stops.\n"
+            f"Never robotic.\nAccent: {accent}\nPace: natural, short pauses at commas and full stops."
+            + (" Leave a clear pause of about one second between paragraphs." if paragraphs else "") + "\n"
             f"# TRANSCRIPT\n{text}")
 
 
@@ -127,14 +130,14 @@ def _max_secs(text):
     return 2.0 + 0.5 * len(text.split())           # natural speech is ~0.35 s/word; reading the notes is ~3x longer
 
 
-def _gemini_one(text, path):
+def _gemini_one(text, path, max_secs=None, paragraphs=False):
     last = None
     for model in gemini_tts_models():
         for attempt in range(3):
             try:
                 r = requests.post(f"{GEM_URL}/models/{model}:generateContent",
                                   headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]}, timeout=(10, 90),
-                                  json={"contents": [{"parts": [{"text": _direction(text, minimal=attempt == 2)}]}],
+                                  json={"contents": [{"parts": [{"text": _direction(text, minimal=attempt == 2 and not paragraphs, paragraphs=paragraphs)}]}],
                                         "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {
                                             "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": C.GEMINI_VOICE}}}}})
             except requests.exceptions.RequestException as e:
@@ -146,7 +149,7 @@ def _gemini_one(text, path):
                 if len(pcm) < rate * 0.4:
                     last = "empty audio"; continue
                 pcm = _trim(pcm, rate)
-                if len(pcm) / rate > _max_secs(text):         # it read the director's notes too
+                if len(pcm) / rate > (max_secs or _max_secs(text)):         # it read the director's notes too
                     last = f"audio too long ({len(pcm) / rate:.1f}s for {len(text.split())} words)"
                     log(f"  Gemini TTS {model}: {last} - retrying")
                     continue
@@ -252,13 +255,75 @@ def order():
     return avail
 
 
+def _gaps(x, sr, min_gap=0.32):
+    hop = int(0.01 * sr)
+    env = np.array([np.sqrt(np.mean(x[i:i + hop] ** 2)) for i in range(0, max(len(x) - hop, 1), hop)])
+    voiced = env > max(0.02 * float(env.max() or 1), 0.004)
+    gaps, run = [], None
+    for i, v in enumerate(voiced):
+        if not v:
+            run = i if run is None else run
+        elif run is not None:
+            if (i - run) * 0.01 >= min_gap:
+                gaps.append((run * 0.01, i * 0.01))
+            run = None
+    return gaps
+
+
+def _gemini_reel(scenes):
+    """ONE request for the whole reel (saves free quota ~7x and gives one continuous, consistent performance),
+    then split into scenes at the paragraph pauses. Raises if the split doesn't match the script."""
+    texts = [voice.clean_for_tts(sc.get("speech") if C.GEMINI_SPEAK_DEVANAGARI and sc.get("speech") else sc["narration"])
+             for sc in scenes]
+    words = [len(t.split()) for t in texts]
+    model, x, sr = _gemini_one("\n\n".join(texts), "reel", paragraphs=True,
+                               max_secs=2.0 + 0.5 * sum(words) + 1.5 * len(scenes))
+    n = len(scenes)
+    gaps = [g for g in _gaps(x, sr) if g[0] > 0.3 and g[1] < len(x) / sr - 0.3]
+    if len(gaps) < n - 1:
+        raise RuntimeError(f"whole-reel voice: found {len(gaps)} pauses for {n} scenes")
+    cuts = sorted(sorted(gaps, key=lambda g: g[1] - g[0], reverse=True)[:n - 1])
+    bounds = [0.0] + [(a + b) / 2 for a, b in cuts] + [len(x) / sr]
+    total, tw = len(x) / sr, float(sum(words))
+    for i in range(n):                                   # each piece must roughly match its scene's length
+        ratio = (bounds[i + 1] - bounds[i]) / (total * words[i] / tw)
+        if not 0.45 <= ratio <= 2.2:
+            raise RuntimeError(f"whole-reel voice: scene {i} split looks wrong (ratio {ratio:.2f})")
+    out = []
+    for i, sc in enumerate(scenes):
+        seg = _trim(x[int(bounds[i] * sr):int(bounds[i + 1] * sr)], sr, lead=0.08, tail=0.25)
+        path, d = _save(seg, sr, f"work/voice_{i}.wav")
+        ws = pause_words(texts[i], seg, sr)
+        out.append((path, d, voice.align(sc["narration"], ws, d)))
+    log(f"  whole-reel voice OK ({model}, 1 request)")
+    return out
+
+
 def speak_scenes(scenes):
-    """Voice every scene with the best provider that can do ALL of them. Returns [(path, secs, words)]."""
+    """Voice every scene with the best provider that can do ALL of them. Returns [(path, secs, words)].
+    STRICT_VOICE=true: never fall back to the robotic Edge voice - fail instead."""
     global LAST
     errors = []
-    for prov in order():
+    provs = order()
+    if os.environ.get("STRICT_VOICE", "false").lower() == "true" and len(provs) > 1:
+        provs = [p for p in provs if p != "edge"]
+    for prov in provs:
         fn, workers = PROVIDERS[prov]
         log(f"🎙️ Voicing {len(scenes)} scenes with {prov}...")
+        if prov == "gemini":
+            try:
+                res = _gemini_reel(scenes)
+                for i, (p, d, _) in enumerate(res):
+                    log(f"  Scene {i}: {d:.1f}s - {scenes[i]['narration'][:50]}...")
+                LAST = prov
+                return res
+            except Exception as e:
+                log(f"  whole-reel voice failed ({str(e)[:160]}) - voicing scene by scene")
+                if "429" in str(e) and "quota" in str(e).lower():
+                    errors.append(f"gemini: {str(e)[:200]}")
+                    log("  ⚠️ gemini daily quota used up")
+                    continue
+            workers = 1                                  # gentle on per-minute limits
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
                 res = list(ex.map(lambda a: fn(*a), enumerate(scenes)))
@@ -269,7 +334,9 @@ def speak_scenes(scenes):
         except Exception as e:
             errors.append(f"{prov}: {str(e)[:200]}")
             log(f"  ⚠️ {prov} voice failed, trying the next provider: {str(e)[:200]}")
-    raise RuntimeError("All voice providers failed: " + " | ".join(errors))
+    raise RuntimeError("No human-like voice available (STRICT_VOICE): " + " | ".join(errors)
+                       if os.environ.get("STRICT_VOICE", "false").lower() == "true" else
+                       "All voice providers failed: " + " | ".join(errors))
 
 
 def needs_devanagari():

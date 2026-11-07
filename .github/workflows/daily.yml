@@ -19,6 +19,10 @@ on:
         description: "Re-make the next slot's reel even if one is already queued"
         type: boolean
         default: false
+      strict_voice:
+        description: "Require the human-like voice (fail instead of using the robotic Edge voice)"
+        type: boolean
+        default: true
 permissions:
   contents: read
   actions: write          # lets the job keep the schedules enabled (GitHub disables them after 60 idle days)
@@ -82,4 +86,5 @@ jobs:
           SERIES_NAME: ${{ vars.SERIES_NAME || 'AI Seekho' }}
           POST_NOW: ${{ inputs.post_now || 'false' }}
           FORCE_NEW: ${{ inputs.force_new || 'false' }}
+          STRICT_VOICE: ${{ inputs.strict_voice || 'false' }}
           PYTHONPATH: cartoon-bot/src
