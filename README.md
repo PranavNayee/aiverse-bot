@@ -103,7 +103,7 @@ GitHub's cron is best-effort: the old single `08:00` trigger was routinely **hou
    posts before publishing. History is written only after a successful post.
 
 Telegram commands: `/post` (approve for the slot), `/postnow` (publish immediately), `/skip` (discard).
-Manual runs: **Daily cartoon reel → post_now** makes and posts one right away; **Post approved reel →
+Manual runs: **Daily AIVerse reel → post_now** makes and posts one right away; **Post approved reel →
 force_post** publishes the queued reel now.
 
 ### **Content pipeline**
@@ -163,7 +163,7 @@ LANGUAGE_MODE=hindi_only     # Pure Hindi (Hindi voice)
 | Sun | AI fun fact | `AI` -> one more fact |
 
 Change it with the variable `CONTENT_PLAN` (e.g. `mon:lesson,tue:trick,...`). Every script opens with a
-result-first hook. Manual runs: **Daily cartoon reel** -> `content` (lesson/trick/fun_fact), `dry_run`
+result-first hook. Manual runs: **Daily AIVerse reel** -> `content` (lesson/trick/fun_fact), `dry_run`
 (Telegram preview only), `post_now`, `fresh_start` (restart at Lesson #1, history backed up).
 
 ## 💰 **Monetization & Growth**

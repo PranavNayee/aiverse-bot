@@ -1,4 +1,4 @@
-name: Daily cartoon reel
+name: Daily AIVerse reel
 # Makes tomorrow's reel the NIGHT BEFORE and queues it for 08:00 IST (POST_TIME).
 # GitHub cron is often hours late or skipped, so there are several backup triggers; every run after the
 # first sees the reel is already made/posted and exits in seconds. Runs that start <5.5 h before the slot
