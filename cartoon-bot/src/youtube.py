@@ -62,8 +62,17 @@ def add_to_playlist(video_id, kind, tok=None):
                        json={"snippet": {"title": title, "description": desc, "defaultLanguage": _lang()},
                              "status": {"privacyStatus": "public"}})["id"]
             log("Created YouTube playlist:", title)
-        _api("POST", "playlistItems", tok, params={"part": "snippet"},
-             json={"snippet": {"playlistId": pid, "resourceId": {"kind": "youtube#video", "videoId": video_id}}})
+        import time
+        for attempt in range(8):                         # a just-uploaded video is still processing (409)
+            try:
+                _api("POST", "playlistItems", tok, params={"part": "snippet"},
+                     json={"snippet": {"playlistId": pid, "resourceId": {"kind": "youtube#video", "videoId": video_id}}})
+                log("Added to playlist:", title)
+                return
+            except RuntimeError as e:
+                if " 409" not in str(e) or attempt == 7:
+                    raise
+                time.sleep(20)
     except Exception as e:
         log("Playlist step skipped:", e)
 

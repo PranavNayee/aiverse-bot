@@ -1,5 +1,6 @@
 """Small YouTube admin jobs (run from the 'Pre-flight check' workflow):
     delete <video_id> [<video_id> ...]   - permanently delete videos from the connected channel
+    playlist <video_id> <kind>           - add a video to its series playlist
     post-lesson <n>                      - upload an already-posted Instagram lesson to YouTube (public),
                                            add it to the course playlist and record it in history"""
 import os, re, sys
@@ -40,5 +41,7 @@ elif cmd == "post-lesson":
     storage.put_json("history.json", history)
     st = youtube._api("GET", "videos", tok, params={"part": "status", "id": vid})["items"][0]["status"]
     print(f"Posted Lesson #{n} to YouTube: https://youtube.com/shorts/{vid} (privacy: {st.get('privacyStatus')})")
+elif cmd == "playlist":                                  # playlist <video_id> <lesson|trick|fun_fact>
+    youtube.add_to_playlist(args[0], args[1], tok)
 else:
     sys.exit(__doc__)
