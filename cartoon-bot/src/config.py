@@ -1,4 +1,4 @@
-import os
+import os, re
 
 def env(name, default=None, required=False):
     v = os.environ.get(name, default)
@@ -38,7 +38,8 @@ MUSIC  = flag("MUSIC")       # soft background music bed (generated, or a file f
 MUSIC_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "music")
 
 # ---------------- The series & channel (edit freely) ----------------
-SERIES_NAME = env("SERIES_NAME", "AI Seekho")
+SERIES_NAME = env("SERIES_NAME", "AIVerse") or "AIVerse"   # MUST match your Instagram name
+BRAND_TAG = "#" + re.sub(r"[^a-z0-9]", "", SERIES_NAME.lower())
 
 # Content language: "hinglish" (default), "english_only", "hindi_only"
 LANGUAGE_MODE = env("LANGUAGE_MODE", "hinglish")

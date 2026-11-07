@@ -36,7 +36,7 @@ TXT = {
     "default": "AI explained simply, in 60 seconds." if EN else "AI concepts ko simple Hinglish mein samjho!",
     "terms": "Key terms" if EN else "Key terms",
 }
-BASE_TAGS = ["#aiseekho", "#learnai", "#artificialintelligence"] + (["#aiexplained"] if EN else ["#aiinhindi"])
+BASE_TAGS = [C.BRAND_TAG, "#learnai", "#artificialintelligence"] + (["#aiexplained"] if EN else ["#aiinhindi"])
 
 
 def _caption(headline, title_line, summary, terms, tags):

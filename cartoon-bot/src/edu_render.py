@@ -17,6 +17,7 @@ LEVEL_COLOR = {"basics": (45, 212, 191), "intermediate": (251, 191, 36), "advanc
                "weekend": (167, 139, 250)}
 INDIGO, GREEN, RED = (129, 140, 248), (74, 222, 128), (251, 113, 133)
 EN = os.environ.get("LANGUAGE_MODE", "hinglish") == "english_only"
+BRAND = (os.environ.get("SERIES_NAME") or "AIVerse").upper()[:14]
 UI = {"remember": "REMEMBER" if EN else "YAAD RAKHO", "next": "NEXT LESSON",
       "daily": "A new AI lesson every day" if EN else "Roz ek naya AI lesson"}
 TOP, BOTTOM = 270, 1290            # safe content band (captions live below, phone UI covers the very top/bottom)
@@ -176,7 +177,7 @@ def chrome(frame, ctx, t):
     # brand pill (top-left) and lesson badge (top-right)
     card(d, (60, 92, 372, 168), 38, (255, 255, 255, 28), rgba(acc, .8), 2)
     d.ellipse((84, 119, 108, 143), fill=rgba(acc))
-    d.text((124, 130), "AI SEEKHO", font=font(36), fill=TEXT, anchor="lm")
+    d.text((124, 130), BRAND, font=font(36 if len(BRAND) <= 10 else 30), fill=TEXT, anchor="lm")
     badge = ctx["label"]
     bw = d.textlength(badge, font=font(32)) + 54
     card(d, (W - 60 - bw, 92, W - 60, 168), 38, rgba(acc, .22), rgba(acc, .9), 2)
@@ -583,13 +584,13 @@ def render_video(scenes, audio_wav, levels, out_path, label, level="basics", wor
             if mascot_on:
                 talk = float(levels[f]) if f < len(levels) else 0.0
                 mascot.draw(frame, acc, sc["kind"], t, st, talk, *MASCOT_XY)
+            if f == snap_f:                                  # clean cover: no half-sentence caption bubble
+                frame.save(snapshot[0], quality=92)
             while ci < len(chunks) and t > chunks[ci]["end"]:
                 ci += 1
             if ci < len(chunks) and chunks[ci]["start"] <= t:
                 draw_bubble(frame, chunks[ci], t, acc)
             im = frame
-            if f == snap_f:
-                im.save(snapshot[0], quality=92)
             proc.stdin.write(im.tobytes())
         proc.stdin.close(); rc = proc.wait()
     except BrokenPipeError:

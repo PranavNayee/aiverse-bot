@@ -17,7 +17,7 @@ SCHEMA = """Scene kinds and their "visual" fields (keep texts SHORT, they appear
 - takeaway: {"text": "one-line summary, max 14 words", "terms": ["max 3 words", exactly 3 key terms]}
 - cta:      {"text": "teaser for the next lesson, max 10 words"}"""
 
-LESSON_PROMPT = """You write a 45-60 second Instagram Reel lesson for an Indian audience, in {language_style}, for a faceless animated channel called "AI Seekho".
+LESSON_PROMPT = """You write a 45-60 second Instagram Reel lesson for an Indian audience, in {language_style}, for a faceless animated channel called "{channel}".
 
 LESSON #{num} ({level}): {title}  /  {title_en}
 CORE FACTS (the ONLY facts you may state as true): {facts}
@@ -53,7 +53,7 @@ Check: (1) every claim is correct and consistent with the reference facts and st
 Verdict: "pass" = fine; "minor" = small wording issues only; "major" = any factual error, misleading claim, wrong formula/code, or off-topic.
 Return ONLY JSON: {{"verdict": "pass|minor|major", "issues": ["short description of each problem and how to fix it"]}}"""
 
-FUN_PROMPT = """You write a 35-45 second weekend "AI fun fact" Instagram Reel in {language_style} for the channel "AI Seekho".
+FUN_PROMPT = """You write a 35-45 second weekend "AI fun fact" Instagram Reel in {language_style} for the channel "{channel}".
 LANGUAGE (critical): {language_instruction}
 TOPIC: {title}
 CORE FACT (the ONLY fact you may state): {facts}
@@ -299,7 +299,7 @@ def generate_lesson_script(lesson, num, next_lesson):
     en = C.LANGUAGE_MODE == "english_only"
     
     def prompt(fb):
-        return LESSON_PROMPT.format(num=num, level=lesson["level"], title=lesson["title_en"] if en else lesson["title"],
+        return LESSON_PROMPT.format(channel=C.SERIES_NAME, num=num, level=lesson["level"], title=lesson["title_en"] if en else lesson["title"],
                                     title_en=lesson["title_en"], facts=lesson["facts"],
                                     analogy=lesson["analogy"] + (" (adapt it into English)" if en else ""),
                                     keywords=", ".join(lesson["keywords"]), winners=_winners(),
@@ -311,7 +311,7 @@ def generate_lesson_script(lesson, num, next_lesson):
 def generate_fun_fact_script(fact):
     def prompt(fb):
         style, instr = _language()
-        return FUN_PROMPT.format(title=fact["title"], facts=fact["facts"], feedback=fb + _winners(), schema=SCHEMA,
+        return FUN_PROMPT.format(channel=C.SERIES_NAME, title=fact["title"], facts=fact["facts"], feedback=fb + _winners(), schema=SCHEMA,
                                  language_style=style, language_instruction=instr)
     log(f"Writing fun fact: {fact['title']}")
     return _make(prompt, fact["facts"], fact["title"], 4, 8)
