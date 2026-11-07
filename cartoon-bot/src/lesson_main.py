@@ -101,8 +101,9 @@ def generate_lesson_video(lesson, lesson_num, script):
 
 def build_content(history, slot):
     """Picks today's content: a lesson on weekdays, an AI fun fact on weekends (of the POSTING day)."""
-    if slots.is_weekend(slot):
-        log("🎉 Weekend slot - generating fun fact")
+    want = os.environ.get("CONTENT_TYPE", "auto").strip().lower()      # auto | lesson | fun_fact
+    if want == "fun_fact" or (want != "lesson" and slots.is_weekend(slot)):
+        log("🎉 Weekend slot - generating fun fact" if want != "fun_fact" else "🎉 Fun fact (forced)")
         fact = syllabus.get_fun_fact(history)
         script = lesson_script.generate_fun_fact_script(fact)
         lesson = {"title": fact["title"], "title_en": fact["title"], "level": "weekend"}
@@ -126,6 +127,19 @@ def _token_warning():
         log("Token check skipped:", e)
 
 
+def fresh_start():
+    """Restart the series at Lesson #1: back up and clear history + stats (old reels stay on Instagram)."""
+    stamp = slots.now().strftime("%Y%m%d-%H%M%S")
+    for key, empty in (("history.json", []), ("stats.json", {})):
+        old = storage.get_json(key, None)
+        if old:
+            storage.put_json(f"backups/{stamp}-{key}", old)
+        storage.put_json(key, empty)
+    storage.delete("pending.json")
+    log(f"🆕 Fresh start: history and stats reset (backup: backups/{stamp}-*). Next lesson is #1.")
+    notify.text(f"🆕 Fresh start! The series restarts at Lesson #1 (old history backed up as backups/{stamp}-*).")
+
+
 def run_lesson_generation():
     t0 = time.time()
     force_new = os.environ.get("FORCE_NEW", "false").lower() == "true"
@@ -139,6 +153,8 @@ def run_lesson_generation():
         key = slots.key(slot)
     log(f"🗓️ Target slot: {slots.fmt(slot)} (key {key}, review mode: {C.REVIEW_MODE})")
 
+    if os.environ.get("FRESH_START", "false").lower() == "true":
+        fresh_start()
     history = storage.get_json("history.json", [])
     pending = storage.get_json("pending.json", None)
     if not force_new and not post_now:

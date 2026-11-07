@@ -19,6 +19,15 @@ on:
         description: "Re-make the next slot's reel even if one is already queued"
         type: boolean
         default: false
+      content:
+        description: "What to make"
+        type: choice
+        options: [auto, lesson, fun_fact]
+        default: auto
+      fresh_start:
+        description: "Restart the series at Lesson #1 (backs up and clears history + stats)"
+        type: boolean
+        default: false
       strict_voice:
         description: "Require the human-like voice (fail instead of using the robotic Edge voice)"
         type: boolean
@@ -87,4 +96,6 @@ jobs:
           POST_NOW: ${{ inputs.post_now || 'false' }}
           FORCE_NEW: ${{ inputs.force_new || 'false' }}
           STRICT_VOICE: ${{ inputs.strict_voice || 'false' }}
+          CONTENT_TYPE: ${{ inputs.content || 'auto' }}
+          FRESH_START: ${{ inputs.fresh_start || 'false' }}
           PYTHONPATH: cartoon-bot/src
