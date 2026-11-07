@@ -11,6 +11,14 @@ secrets (via the gh CLI) - it is never printed."""
 import http.server, json, os, subprocess, sys, threading, urllib.parse, urllib.request, webbrowser
 
 PORT = 8765
+
+# macOS python.org builds ship without root certificates; use certifi's bundle when available.
+try:
+    import certifi, ssl
+    _CTX = ssl.create_default_context(cafile=certifi.where())
+    urllib.request.install_opener(urllib.request.build_opener(urllib.request.HTTPSHandler(context=_CTX)))
+except ImportError:
+    pass
 SCOPE = ("https://www.googleapis.com/auth/youtube.upload "      # upload Shorts
          "https://www.googleapis.com/auth/youtube.force-ssl")    # playlists + replying to comments
 
