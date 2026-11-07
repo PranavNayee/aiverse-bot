@@ -14,7 +14,7 @@ EMOJI_FONTS = [(FONT_DIR + "NotoColorEmoji.ttf", 109), ("/usr/share/fonts/noto/N
 
 TEXT, MUTED, DARK = (244, 246, 255), (156, 166, 196), (12, 14, 34)
 LEVEL_COLOR = {"basics": (45, 212, 191), "intermediate": (251, 191, 36), "advanced": (244, 114, 182),
-               "weekend": (167, 139, 250)}
+               "weekend": (167, 139, 250), "trick": (251, 146, 60)}
 INDIGO, GREEN, RED = (129, 140, 248), (74, 222, 128), (251, 113, 133)
 EN = os.environ.get("LANGUAGE_MODE", "hinglish") == "english_only"
 BRAND = (os.environ.get("SERIES_NAME") or "AIVerse").upper()[:14]
@@ -451,8 +451,59 @@ def s_cta(frame, d, v, t, dur, ctx):
         put(frame, emoji_img("🔔", 74), 540 - w / 2 + 70, 980, pb * (1 + 0.1 * math.sin(TAU * 3 * t)))
     ctext(d, 540, 1160, UI["daily"], font(46, False), rgba(MUTED, ease_out(prog(t, 1.3, .6))))
 
+def _bubble_lines(d, text, f, maxw):
+    lines = wrap(d, text, f, maxw)
+    return lines, max([d.textlength(l, font=f) for l in lines] + [10])
+
+
+def s_chat(frame, d, v, t, dur, ctx):
+    """ChatGPT-style demo: the prompt types itself, the AI 'thinks', then the answer streams in."""
+    acc = ctx["accent"]
+    p = ease_out(prog(t, 0, .45))
+    card(d, (70, 330, W - 70, BOTTOM - 10), 44, (10, 12, 30, int(215 * p)), rgba(acc, .55 * p), 3)
+    d.ellipse((110, 372, 150, 412), fill=rgba(acc, p))
+    d.text((170, 392), "AI Chat", font=font(40), fill=rgba(TEXT, p), anchor="lm")
+    d.line([(110, 440), (W - 110, 440)], fill=rgba(TEXT, .12 * p), width=2)
+    fu, fa = font(44), font(42, False)
+    t_user = (0.35, max(1.2, dur * 0.32))                      # typing window for the prompt
+    t_think = t_user[0] + t_user[1] + 0.15
+    t_ai = (t_think + 0.6, max(1.2, dur - (t_think + 0.6) - 0.6))
+    # user bubble (right)
+    k = prog(t, *t_user)
+    if k > 0:
+        txt = v["user"][:max(1, int(len(v["user"]) * k))]
+        lines, lw = _bubble_lines(d, v["user"], fu, 680)
+        shown, left = [], len(txt)
+        for ln in lines:
+            shown.append(ln[:max(0, left)]); left -= len(ln) + 1
+        bw, bh = lw + 70, len(lines) * 58 + 46
+        x1, y0 = W - 110, 480
+        card(d, (x1 - bw, y0, x1, y0 + bh), 34, rgba(acc, .92))
+        for i, ln in enumerate(shown):
+            d.text((x1 - bw + 35, y0 + 23 + i * 58 + 29), ln, font=fu, fill=DARK, anchor="lm")
+        y_next = y0 + bh + 40
+    else:
+        y_next = 480
+    # thinking dots
+    if t_think <= t < t_ai[0]:
+        for i in range(3):
+            a = 0.35 + 0.65 * (0.5 + 0.5 * math.sin(TAU * (t * 2.2 - i * 0.25)))
+            d.ellipse((130 + i * 46, y_next + 20, 156 + i * 46, y_next + 46), fill=rgba(TEXT, a))
+    # AI bubble (left), streams word by word
+    ka = prog(t, *t_ai)
+    if ka > 0:
+        words = v["ai"].split()
+        txt = " ".join(words[:max(1, int(math.ceil(len(words) * ka)))])
+        lines, lw = _bubble_lines(d, v["ai"], fa, 700)
+        shown_lines = wrap(d, txt, fa, 700)
+        bw, bh = lw + 70, len(lines) * 56 + 46
+        card(d, (110, y_next, 110 + bw, y_next + bh), 34, (255, 255, 255, 30), rgba(TEXT, .25), 2)
+        for i, ln in enumerate(shown_lines[:len(lines)]):
+            d.text((145, y_next + 23 + i * 56 + 28), ln, font=fa, fill=TEXT, anchor="lm")
+
+
 DRAWERS = {"hook": s_hook, "bullets": s_bullets, "flow": s_flow, "compare": s_compare, "network": s_network,
-           "code": s_code, "stat": s_stat, "formula": s_formula, "takeaway": s_takeaway, "cta": s_cta}
+           "code": s_code, "stat": s_stat, "formula": s_formula, "takeaway": s_takeaway, "chat": s_chat, "cta": s_cta}
 
 # ---------------------------------------------------------------- captions (speech bubble, word-by-word karaoke)
 BUBBLE = (335, 1318, 950, 1572)            # x0, y0, x1, y1 - left of Instagram's right-side buttons, above its caption

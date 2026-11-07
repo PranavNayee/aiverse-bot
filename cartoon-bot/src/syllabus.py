@@ -186,3 +186,46 @@ def get_fun_fact(history):
 if __name__ == "__main__":
     from collections import Counter
     print(TOTAL, "lessons", dict(Counter(l["level"] for l in LESSONS)), "|", len(FUN_FACTS), "fun facts")
+
+
+# ---------------------------------------------------------------- "AI Trick of the Day" (practical, shareable)
+# (title in Hinglish, title in English, CORE FACTS the script must stay within, keywords)
+# Facts are kept general and stable (no prices, plan names or version numbers) because apps change often.
+TRICKS = [
+ ("Ek prompt jo ChatGPT ko expert bana de", "The role prompt that makes ChatGPT an expert", "Telling a chatbot a ROLE (act as...), the GOAL, the CONTEXT and the answer FORMAT in one prompt usually gives far more useful answers than a one-line question.", ["prompt", "role", "format"]),
+ ("Photo se text copy karo - Google Lens", "Copy text from any photo with Google Lens", "Google Lens can detect text in a photo or through the camera so you can select, copy, translate or search it.", ["Google Lens", "copy text"]),
+ ("Camera se live translate", "Live translate with your camera", "The Google Translate app has a camera mode that translates printed text you point the camera at, shown on screen.", ["Google Translate", "camera"]),
+ ("Circle to Search ka jaadu", "Circle to Search", "On supported Android phones, Circle to Search lets you long-press the home button or navigation bar and circle anything on screen to search it with Google.", ["Circle to Search", "Android"]),
+ ("Notes ko 1 minute mein flashcards banao", "Turn notes into flashcards", "You can paste your notes into a chatbot and ask it to make question-and-answer flashcards, which supports active recall. Always check the answers against your book.", ["flashcards", "active recall"]),
+ ("Apni PDF se baat karo - NotebookLM", "Chat with your own PDFs using NotebookLM", "Google NotebookLM lets you upload your own documents and ask questions that are answered from those sources, with citations to the source text.", ["NotebookLM", "sources"]),
+ ("AI se English speaking practice", "Practice spoken English with AI", "Chatbots with a voice mode let you have a spoken conversation, so you can practise speaking English and ask for corrections.", ["voice mode", "speaking"]),
+ ("'Explain like I'm 10' trick", "The explain-like-I'm-10 trick", "Asking a chatbot to explain a topic as if to a 10-year-old, with an everyday example, usually produces a much simpler explanation.", ["simple", "ELI10"]),
+ ("Resume ko AI se better banao (sahi tareeke se)", "Improve your resume with AI the right way", "A chatbot can rewrite resume bullet points to be clearer and action-focused, but you should never let it add skills or experience you do not have.", ["resume", "honest"]),
+ ("Sources ke saath jawab - Perplexity", "Answers with sources using Perplexity", "Perplexity is an AI answer engine that searches the web and shows the sources it used next to its answer, so you can check them.", ["Perplexity", "sources"]),
+ ("Example do, perfect format pao", "Few-shot prompting: show an example", "Giving one or two examples of the output you want inside the prompt (few-shot prompting) makes the answer follow the same format much more reliably.", ["few-shot", "examples"]),
+ ("'Step by step' bolo, galti kam", "Ask it to think step by step", "For maths or logic questions, asking the model to work through the problem step by step often improves accuracy, but you should still verify the final answer.", ["step by step", "reasoning"]),
+ ("AI se apna study timetable", "Make a study timetable with AI", "You can give a chatbot your exam date, subjects and free hours and ask it to make a day-by-day study timetable with revision days.", ["timetable", "planning"]),
+ ("Lamba video? 30 second mein summary", "Summarise a long video transcript", "If you paste a video's transcript into a chatbot, it can summarise the main points; many YouTube videos show a transcript in the description panel.", ["summary", "transcript"]),
+ ("Excel formula bina yaad kiye", "Get Excel formulas by describing them", "You can describe what you want in plain words and ask a chatbot for the Excel or Google Sheets formula, then test it on a small example before trusting it.", ["Excel", "formula"]),
+ ("Fake photo kaise pakdein", "Check if a photo is fake", "A reverse image search with Google Lens can show where else an image appears online, which helps spot old or edited photos shared as new.", ["reverse image search", "fake"]),
+ ("AI ke saath mock interview", "Mock interview with AI", "You can ask a chatbot to act as an interviewer for a specific job, ask one question at a time and give feedback on your answers.", ["interview", "practice"]),
+ ("Code error ka matlab samjho", "Understand any code error message", "Pasting an error message and the related code into a chatbot and asking what it means and how to fix it is a fast way to learn debugging.", ["error", "debugging"]),
+ ("Chatbot ko ye kabhi mat batao", "Never share this with a chatbot", "Never share passwords, OTPs, bank details or ID numbers with AI chatbots or anyone online; treat chats as not fully private.", ["privacy", "OTP"]),
+ ("AI galat bole toh kaise pakdo", "Catch AI hallucinations", "Chatbots can state wrong facts confidently (hallucinations). Ask for sources and check important facts on trusted websites.", ["hallucination", "verify"]),
+ ("Table format ka simple trick", "Ask for a table", "Adding 'answer in a table with columns ...' to a prompt makes comparisons much easier to read.", ["table", "compare"]),
+ ("Custom instructions - ek baar set, hamesha fayda", "Custom instructions", "ChatGPT lets you set custom instructions about yourself and how you want answers, which it then applies to your chats.", ["custom instructions", "personalise"]),
+ ("Presentation 5 minute mein", "Presentation outline in minutes", "A chatbot can draft a slide-by-slide outline from a topic; tools such as Gamma can turn a prompt into a first draft of a presentation that you then edit.", ["slides", "outline"]),
+ ("Hindi mein bolo, phone likhega", "Voice typing in Hindi", "Gboard's voice typing supports many Indian languages including Hindi, so you can speak and the phone types for you.", ["voice typing", "Gboard"]),
+ ("Photo ka background 1 click mein hatao", "Remove a photo background in one click", "Tools such as Canva's background remover and remove.bg can automatically cut out the subject of a photo and remove the background.", ["background remover", "Canva"]),
+ ("AI se khud ka quiz lo", "Make AI quiz you", "Asking a chatbot to quiz you with one question at a time on a chapter, and to explain your mistakes, uses active recall, one of the most effective study methods.", ["quiz", "active recall"]),
+ ("WhatsApp mein Meta AI", "Meta AI inside WhatsApp", "In many countries including India, WhatsApp includes Meta AI, a chatbot you can ask questions inside the app.", ["Meta AI", "WhatsApp"]),
+ ("Email likhna ab aasaan", "Write professional emails with AI", "You can give a chatbot the key points, the receiver and the tone you want, and ask it for a short professional email that you then check and edit.", ["email", "tone"]),
+ ("Prompt mein 'mujhse sawaal pucho' jodo", "Let the AI ask you questions first", "Adding 'ask me any questions you need before answering' to a prompt lets the chatbot gather missing details, which often gives a more personalised answer.", ["clarifying questions", "prompt"]),
+ ("Ek prompt, teen options", "Ask for options, not one answer", "Asking for three different options (for example three titles or three plans) and then choosing or combining them usually beats accepting the first answer.", ["options", "brainstorm"]),
+]
+
+def get_next_trick(history):
+    last = _last(history, "trick", "trick_idx")
+    idx = (last + 1 if last is not None else len([h for h in history if h.get("type") == "trick"])) % len(TRICKS)
+    t, t_en, facts, kw = TRICKS[idx]
+    return {"title": t, "title_en": t_en, "facts": facts, "keywords": kw, "idx": idx}

@@ -154,6 +154,18 @@ LANGUAGE_MODE=hindi_only     # Pure Hindi (Hindi voice)
 
 ---
 
+## 📅 **Weekly Content Plan**
+
+| Day | Content | Comment keyword -> auto-reply sends |
+|---|---|---|
+| Mon / Wed / Fri | Course lesson (#1, #2, ...) | `NOTES` -> revision notes |
+| Tue / Thu / Sat | **AI Trick of the Day** (practical, most shareable; animated chat demo) | `PROMPT` -> the exact prompt/steps |
+| Sun | AI fun fact | `AI` -> one more fact |
+
+Change it with the variable `CONTENT_PLAN` (e.g. `mon:lesson,tue:trick,...`). Every script opens with a
+result-first hook. Manual runs: **Daily cartoon reel** -> `content` (lesson/trick/fun_fact), `dry_run`
+(Telegram preview only), `post_now`, `fresh_start` (restart at Lesson #1, history backed up).
+
 ## 💰 **Monetization & Growth**
 
 - **YouTube Shorts cross-post** (YouTube shares Shorts ad revenue - the main money path in India):

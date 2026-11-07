@@ -32,7 +32,8 @@ def _record(p, media_id):
     history = storage.get_json("history.json", [])
     history.append({
         "date": p.get("slot"), "slot": p.get("slot"), "type": p.get("type", "lesson"),
-        "lesson_num": p.get("lesson_num"), "fact_idx": p.get("fact_idx"), "level": p.get("level"),
+        "lesson_num": p.get("lesson_num"), "fact_idx": p.get("fact_idx"), "trick_idx": p.get("trick_idx"),
+        "level": p.get("level"), "keyword": p.get("keyword"), "freebie": p.get("freebie", ""),
         "topic": p.get("topic", ""), "duration": p.get("duration"), "fact_check": p.get("fact_check"),
         "media_id": media_id, "posted_ts": int(time.time()), "hook": p.get("hook", ""),
         "youtube_id": p.get("youtube_id"),

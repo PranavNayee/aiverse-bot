@@ -22,10 +22,14 @@ on:
       content:
         description: "What to make"
         type: choice
-        options: [auto, lesson, fun_fact]
+        options: [auto, lesson, trick, fun_fact]
         default: auto
       fresh_start:
         description: "Restart the series at Lesson #1 (backs up and clears history + stats)"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Make the reel and send it to Telegram only (do NOT post)"
         type: boolean
         default: false
       strict_voice:
@@ -98,4 +102,5 @@ jobs:
           STRICT_VOICE: ${{ inputs.strict_voice || 'false' }}
           CONTENT_TYPE: ${{ inputs.content || 'auto' }}
           FRESH_START: ${{ inputs.fresh_start || 'false' }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
           PYTHONPATH: cartoon-bot/src

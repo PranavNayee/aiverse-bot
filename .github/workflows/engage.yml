@@ -3,7 +3,7 @@ name: Grow channel
 # and on Sunday evening send the weekly Telegram report.
 on:
   schedule:
-    - cron: "37 1,5,9,13,17 * * *"   # 07:07, 11:07, 15:07, 19:07, 23:07 IST
+    - cron: "37 * * * *"   # hourly (fast replies to "comment KEYWORD" requests)
   workflow_dispatch:
     inputs:
       force_report:

@@ -83,7 +83,24 @@ If they asked something the reel did not cover, give a one-line answer and say a
 Return ONLY JSON: {{"reply": true|false, "text": "..."}}"""
 
 
-def reply_comments(days=7):
+INTROS = ["@{user} Ye lo 👇", "@{user} Here you go 🙌", "@{user} Aapke liye 👇", "@{user} Done! 👇", "@{user} Lo ji 🔖"]
+_LAST_ERR = None
+
+
+def _reply(cid, message):
+    global _LAST_ERR
+    try:
+        _check(requests.post(f"{GRAPH}/{cid}/replies", data={"message": message, "access_token": C.IG_ACCESS_TOKEN()},
+                             timeout=60))
+        _LAST_ERR = None
+        return True
+    except RuntimeError as e:
+        _LAST_ERR = str(e)
+        log("Reply failed:", _LAST_ERR[:150])
+        return False
+
+
+def reply_comments(days=14):
     eng = storage.get_json("engage.json", {})
     done = set(eng.get("replied", []))
     me = (eng.get("username") or "").lower()
@@ -92,7 +109,7 @@ def reply_comments(days=7):
         eng["username"] = me
     history = storage.get_json("history.json", [])
     cutoff = time.time() - days * 86400
-    recent = [h for h in history if str(h.get("media_id", "")).isdigit() and (h.get("posted_ts") or 0) >= cutoff][-6:]
+    recent = [h for h in history if str(h.get("media_id", "")).isdigit() and (h.get("posted_ts") or 0) >= cutoff][-10:]
     lang = "English" if C.LANGUAGE_MODE == "english_only" else "Hinglish"
     sent, err = 0, None
     for h in reversed(recent):
@@ -109,6 +126,12 @@ def reply_comments(days=7):
             if any((r.get("username") or "").lower() == me for r in (c.get("replies") or {}).get("data", [])):
                 done.add(cid); continue
             done.add(cid)
+            kw, freebie = (h.get("keyword") or "").strip(), (h.get("freebie") or "").strip()
+            if kw and freebie and re.search(rf"\b{re.escape(kw)}\b", text, re.I):
+                intro = INTROS[sum(map(ord, user)) % len(INTROS)].format(user=user)
+                if _reply(cid, f"{intro}\n\n{freebie}"[:2000]):
+                    sent += 1; log(f"  sent {kw} freebie to @{user}"); time.sleep(4)
+                continue
             if re.search(r"https?://|www\.", text) or len(text) > 600:
                 continue
             try:
@@ -119,14 +142,12 @@ def reply_comments(days=7):
             reply = re.sub(r"https?://\S+", "", str(d.get("text", ""))).strip()[:300]
             if not d.get("reply") or not reply:
                 continue
-            try:
-                _check(requests.post(f"{GRAPH}/{cid}/replies", data={"message": reply,
-                                     "access_token": C.IG_ACCESS_TOKEN()}, timeout=60))
+            if _reply(cid, reply):
                 sent += 1
                 log(f"  replied to @{user}: {reply[:80]}")
                 time.sleep(4)                                   # be gentle - look human, avoid spam limits
-            except RuntimeError as e:
-                err = str(e); break
+            elif _LAST_ERR:
+                err = _LAST_ERR; break
     eng["replied"] = list(done)[-3000:]
     storage.put_json("engage.json", eng)
     log(f"Replied to {sent} comments")

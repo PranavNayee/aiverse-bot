@@ -22,7 +22,11 @@ hist = [{"type": "lesson", "lesson_num": 57}] + [{"type": "fun_fact", "fact_idx"
 assert syllabus.get_next_lesson(hist)[1] == 58
 assert syllabus.get_fun_fact(hist)["idx"] == 4
 assert syllabus.get_fun_fact([])["idx"] == 0
-print("syllabus ok")
+assert syllabus.get_next_trick([{"type": "trick", "trick_idx": 2}])["idx"] == 3
+import lesson_main
+kinds = [lesson_main.content_kind(at(2026, 11, d, 8, 0)) for d in range(9, 16)]     # Mon 9 Nov .. Sun 15 Nov
+assert kinds == ["lesson", "trick", "lesson", "trick", "lesson", "trick", "fun_fact"], kinds
+print("syllabus + weekly plan ok")
 
 # ---------------------------------------------------------------- render
 raw = {"scenes": [
@@ -31,10 +35,12 @@ raw = {"scenes": [
     {"kind": "flow", "narration": "Pehle data ko do hisson me split karo, phir training set par model ko train karo, aur aakhir me test set par uska asli score check karo.", "visual": {"heading": "Steps", "steps": [{"label": "Split data", "emoji": "✂️"}, {"label": "Train", "emoji": "🏋️"}, {"label": "Test", "emoji": "✅"}]}},
     {"kind": "network", "narration": "Neural network layers me data aage badhta hai aur pattern seekhta hai.", "visual": {"heading": "Neural Net", "layers": [3, 4, 2], "labels": ["Input", "Hidden", "Output"]}},
     {"kind": "code", "narration": "Python me train test split ek line me ho jata hai, bilkul simple.", "visual": {"heading": "Python", "lines": ["from sklearn.model_selection \\", "  import train_test_split", "X_tr, X_te = train_test_split(X)"]}},
+    {"kind": "chat", "narration": "ChatGPT ko bolo, act as a teacher aur mujhe train test split samjhao, simple example ke saath.", "visual": {"user": "Act as a teacher. Explain train/test split with a cricket example.", "ai": "Sure! Nets practice = training data. The real match = test data the model has never seen."}},
     {"kind": "takeaway", "narration": "Yaad rakho, model ko hamesha unseen data par test karo, warna score jhoota hoga aur real world me model fail ho sakta hai.", "visual": {"text": "Unseen data par test karo", "terms": ["train", "test", "split"]}},
     {"kind": "cta", "narration": "Agle lesson me supervised learning. Follow karo AI Seekho!", "visual": {"text": "Next: Supervised Learning"}},
 ], "caption_summary": "x", "key_terms": ["a", "b", "c"]}
 script = lesson_script.validate(raw, 5, 10)
+assert any(sc["kind"] == "chat" for sc in script["scenes"])
 
 sh = lambda *a: subprocess.run(a, check=True, capture_output=True)
 clips, scenes, words, t = [], [], [], 0.0

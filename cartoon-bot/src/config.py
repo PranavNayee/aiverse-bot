@@ -37,6 +37,11 @@ MASCOT = flag("MASCOT")      # animated 'Seekho Bot' teacher: blinks, gestures, 
 MUSIC  = flag("MUSIC")       # soft background music bed (generated, or a file from assets/music), ducked under voice
 MUSIC_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "music")
 
+# ---------------- Weekly content plan ----------------
+# lesson = next course lesson, trick = "AI Trick of the Day" (practical, most shareable), fun_fact = AI fun fact
+CONTENT_PLAN = dict(x.split(":") for x in (env("CONTENT_PLAN", "") or
+                    "mon:lesson,tue:trick,wed:lesson,thu:trick,fri:lesson,sat:trick,sun:fun_fact").split(","))
+
 # ---------------- The series & channel (edit freely) ----------------
 SERIES_NAME = env("SERIES_NAME", "AIVerse") or "AIVerse"   # MUST match your Instagram name
 BRAND_TAG = "#" + re.sub(r"[^a-z0-9]", "", SERIES_NAME.lower())

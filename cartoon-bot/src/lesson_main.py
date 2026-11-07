@@ -30,8 +30,8 @@ EN = C.LANGUAGE_MODE == "english_only"
 TXT = {
     "save": "Save this for later and share it with a friend who is learning AI 🔖" if EN else
             "Save karo baad ke liye aur us dost ko bhejo jo AI seekh raha hai 🔖",
-    "ask": "Comment your question below 👇 I reply to every one!" if EN else
-           "Koi doubt? Comment karo 👇 har sawaal ka jawab milega!",
+    "ask": "💬 Comment \"{kw}\" and I'll reply with {what}!" if EN else
+           "💬 Comment karo \"{kw}\" - reply mein {what} milega!",
     "follow": "Follow @{h} for a new AI lesson every day 🔔" if EN else "Roz naya AI lesson - follow karo 🔔",
     "default": "AI explained simply, in 60 seconds." if EN else "AI concepts ko simple Hinglish mein samjho!",
     "terms": "Key terms" if EN else "Key terms",
@@ -39,12 +39,16 @@ TXT = {
 BASE_TAGS = [C.BRAND_TAG, "#learnai", "#artificialintelligence"] + (["#aiexplained"] if EN else ["#aiinhindi"])
 
 
-def _caption(headline, title_line, summary, terms, tags):
+FREEBIE = {"PROMPT": "the exact prompt" if EN else "exact prompt", "NOTES": "quick revision notes" if EN else "revision notes",
+           "AI": "one more surprising fact" if EN else "ek aur surprising fact"}
+
+
+def _caption(headline, title_line, summary, terms, tags, kw="NOTES"):
     tags = list(dict.fromkeys([t for t in tags if t] + BASE_TAGS))[:8]   # Instagram favours few, relevant tags
     parts = [headline, "", title_line, "", summary or TXT["default"]]
     if terms:
         parts += ["", f"💡 {TXT['terms']}: " + " · ".join(terms[:3])]
-    parts += ["", TXT["save"], TXT["ask"], TXT["follow"].format(h=C.SERIES_NAME.replace(' ', '').lower()), "",
+    parts += ["", TXT["ask"].format(kw=kw, what=FREEBIE.get(kw, "")), TXT["save"], TXT["follow"].format(h=C.SERIES_NAME.replace(' ', '').lower()), "",
               " ".join(tags)]
     cap = "\n".join(parts)
     log(f"Caption: {len(cap)} chars")
@@ -61,12 +65,19 @@ def build_fun_fact_caption(script, topic):
     headline = script.get("headline") or f"🤯 {topic}"
     label = "Weekend AI Fun Fact" if EN else "Weekend Special - AI Fun Fact"
     return _caption(headline, f"🎉 {label}", script.get("caption_summary", ""), script.get("key_terms", []),
-                    script.get("hashtags", []) + ["#aifacts", "#didyouknow"])
+                    script.get("hashtags", []) + ["#aifacts", "#didyouknow"], kw="AI")
+
+
+def build_trick_caption(script, title):
+    headline = script.get("headline") or f"🛠️ {title}"
+    label = "AI Trick of the Day" if EN else "AI Trick of the Day"
+    return _caption(headline, f"🛠️ {label} · {title}", script.get("caption_summary", ""), script.get("key_terms", []),
+                    script.get("hashtags", []) + ["#aitools", "#chatgpttips"], kw="PROMPT")
 
 
 def generate_lesson_video(lesson, lesson_num, script):
     """Voice -> one soundtrack -> one single-pass 2D animated render. Returns (video, seconds, cover jpg)."""
-    label = f"Lesson #{lesson_num}" if lesson_num else "Fun Fact"
+    label = (f"Lesson #{lesson_num}" if lesson_num else "AI Trick" if lesson.get("level") == "trick" else "Fun Fact")
     log(f"🎬 Rendering {label}: {lesson['title']}")
     shutil.rmtree("work", ignore_errors=True)
     os.makedirs("work")
@@ -99,20 +110,39 @@ def generate_lesson_video(lesson, lesson_num, script):
     return final_video, total, cover
 
 
+DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+
+def content_kind(slot):
+    want = os.environ.get("CONTENT_TYPE", "auto").strip().lower()      # auto | lesson | trick | fun_fact
+    if want in ("lesson", "trick", "fun_fact"):
+        return want
+    return C.CONTENT_PLAN.get(DAYS[slot.weekday()], "lesson").strip()
+
+
 def build_content(history, slot):
-    """Picks today's content: a lesson on weekdays, an AI fun fact on weekends (of the POSTING day)."""
-    want = os.environ.get("CONTENT_TYPE", "auto").strip().lower()      # auto | lesson | fun_fact
-    if want == "fun_fact" or (want != "lesson" and slots.is_weekend(slot)):
-        log("🎉 Weekend slot - generating fun fact" if want != "fun_fact" else "🎉 Fun fact (forced)")
+    """Picks the slot's content from the weekly plan (C.CONTENT_PLAN) for the POSTING day."""
+    kind = content_kind(slot)
+    base = dict(lesson_num=None, fact_idx=None, trick_idx=None)
+    if kind == "fun_fact":
+        log("🎉 Fun fact day")
         fact = syllabus.get_fun_fact(history)
         script = lesson_script.generate_fun_fact_script(fact)
         lesson = {"title": fact["title"], "title_en": fact["title"], "level": "weekend"}
-        return dict(script=script, lesson=lesson, lesson_num=None, fact_idx=fact["idx"], type="fun_fact",
-                    level="weekend", topic=fact["title"], caption=build_fun_fact_caption(script, fact["title"]))
-    log("📚 Weekday slot - generating lesson")
+        return dict(base, script=script, lesson=lesson, fact_idx=fact["idx"], type="fun_fact", level="weekend",
+                    keyword="AI", topic=fact["title"], caption=build_fun_fact_caption(script, fact["title"]))
+    if kind == "trick":
+        log("🛠️ AI Trick of the Day")
+        tr = syllabus.get_next_trick(history)
+        script = lesson_script.generate_trick_script(tr)
+        title = tr["title_en"] if EN else tr["title"]
+        lesson = {"title": title, "title_en": tr["title_en"], "level": "trick"}
+        return dict(base, script=script, lesson=lesson, trick_idx=tr["idx"], type="trick", level="trick",
+                    keyword="PROMPT", topic=title, caption=build_trick_caption(script, title))
+    log("📚 Lesson day")
     lesson, num, nxt = syllabus.get_next_lesson(history)
     script = lesson_script.generate_lesson_script(lesson, num, nxt)
-    return dict(script=script, lesson=lesson, lesson_num=num, fact_idx=None, type="lesson", level=lesson["level"],
+    return dict(base, script=script, lesson=lesson, lesson_num=num, type="lesson", level=lesson["level"], keyword="NOTES",
                 topic=lesson["title_en"] if EN else lesson["title"],
                 caption=build_lesson_caption(script, num, lesson["level"], lesson["title_en"] if EN else lesson["title"]))
 
@@ -188,10 +218,16 @@ def run_lesson_generation():
     except Exception as e:
         log("Cover upload failed (posting without cover):", e)
 
+    if os.environ.get("DRY_RUN", "false").lower() == "true":
+        log(f"🧪 DRY RUN - not queued or posted. Video: {url}")
+        notify.video(final_video, f"🧪 Preview only (not posted): {c['topic']} ({duration:.0f}s)\n\n{c['caption'][:700]}", url)
+        return
+
     post_at = time.time() if post_now else slot.timestamp()
     storage.put_json("pending.json", {
         "slot": key, "post_at": int(post_at), "video_url": url, "cover_url": cover_url, "caption": c["caption"],
         "topic": c["topic"], "type": c["type"], "lesson_num": c["lesson_num"], "fact_idx": c["fact_idx"],
+        "trick_idx": c["trick_idx"], "keyword": c["keyword"], "freebie": c["script"].get("freebie", ""),
         "level": c["level"], "duration": round(duration, 1), "fact_check": c["script"].get("fact_check", "pass"),
         "hook": c["script"]["scenes"][0]["narration"], "headline": c["script"].get("headline", ""),
         "created_ts": int(time.time()), "attempts": 0, "status": "queued",

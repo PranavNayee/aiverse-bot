@@ -15,7 +15,15 @@ SCHEMA = """Scene kinds and their "visual" fields (keep texts SHORT, they appear
 - stat:     {"big": "big number/term, max 10 chars", "caption": "max 8 words", "emoji": "one emoji"}
 - formula:  {"heading": "max 4 words", "lines": ["max 28 chars per line, max 2 lines"], "note": "max 8 words"}
 - takeaway: {"text": "one-line summary, max 14 words", "terms": ["max 3 words", exactly 3 key terms]}
-- cta:      {"text": "teaser for the next lesson, max 10 words"}"""
+- chat:     {"user": "what the person types to the AI, max 90 chars", "ai": "the AI's short reply, max 140 chars"}  (a ChatGPT-style chat demo that SHOWS a result)
+- cta:      {"text": "teaser for the next video, max 10 words"}"""
+
+HOOK_RULE = """HOOK (critical for views): the first sentence must promise a concrete PAYOFF or show a surprising real-life RESULT
+the viewer gets (e.g. "Ek prompt se 1 ghante ka kaam 2 minute mein"), never a vague question like "Kya aap jaante hain AI kya hai?".
+Talk to ONE viewer ("aap"/"you"). No greetings, no channel intro."""
+
+CTA_RULE = """LAST SCENE kind=cta: tell viewers to comment the word {keyword} to get {freebie_what} in the reply, then follow {channel}.
+Also return "freebie": {freebie_spec}"""
 
 LESSON_PROMPT = """You write a 45-60 second Instagram Reel lesson for an Indian audience, in {language_style}, for a faceless animated channel called "{channel}".
 
@@ -26,9 +34,11 @@ Keywords: {keywords}
 Next lesson (for the teaser): {next_title}
 {feedback}{winners}
 LANGUAGE (critical): {language_instruction}
+{hook_rule}
+{cta_rule}
 ACCURACY (critical): Do not invent statistics, dates, names, prices or claims beyond the CORE FACTS. If the analogy is imperfect, say "roughly" or "approximately". Never mention politics or religion.
 
-STRUCTURE: 7 to 9 scenes. Scene 1 kind=hook (narration 8-14 words). Then analogy, concept breakdown (use different visual kinds: flow / compare / network / bullets / formula / code / stat where they truly fit the topic), an example, then kind=takeaway, last kind=cta (narration 10-16 words, tease the next lesson, ask to follow).
+STRUCTURE: 7 to 9 scenes. Scene 1 kind=hook (narration 8-14 words). Then analogy, concept breakdown (use different visual kinds: flow / compare / network / bullets / formula / code / stat where they truly fit the topic), an example, then kind=takeaway, last kind=cta (narration 12-24 words: the comment-keyword offer, tease the next lesson, ask to follow).
 Each scene "narration": 12-30 words (hook and cta may be shorter). Total narration about 120-170 words.
 Visuals must show THIS lesson's real content (real step names, real layer sizes, real formula), never generic placeholders.
 
@@ -39,6 +49,7 @@ Return ONLY JSON:
  "caption_summary": "2 short lines, same language as the narration",
  "headline": "Instagram caption first line: curiosity hook with the main search keyword, max 70 chars, 1 emoji",
  "hashtags": ["5 niche hashtags for this exact topic, lowercase, with #"],
+ "freebie": "...",
  "key_terms": ["term1", "term2", "term3"]}}"""
 
 FACT_PROMPT = """You are a strict senior ML engineer fact-checking a short lesson for beginners.
@@ -55,16 +66,39 @@ Return ONLY JSON: {{"verdict": "pass|minor|major", "issues": ["short description
 
 FUN_PROMPT = """You write a 35-45 second weekend "AI fun fact" Instagram Reel in {language_style} for the channel "{channel}".
 LANGUAGE (critical): {language_instruction}
+{hook_rule}
 TOPIC: {title}
 CORE FACT (the ONLY fact you may state): {facts}
 {feedback}
-Rules: friendly, surprising, accurate. Do not add facts, numbers or dates beyond the core fact. No emojis/symbols in "narration". 5 to 6 scenes: hook, 2-3 story/explain scenes (use stat / bullets / flow / compare kinds), takeaway, cta (tease next weekend fact, ask to follow).
+Rules: friendly, surprising, accurate. Do not add facts, numbers or dates beyond the core fact. No emojis/symbols in "narration". 5 to 6 scenes: hook, 2-3 story/explain scenes (use stat / bullets / flow / compare kinds), takeaway, cta (tell viewers to comment AI for one more surprising fact, then follow).
+Also return "freebie": one more short surprising fact strictly from the CORE FACT, max 300 chars.
 
 {schema}
 
-Return ONLY JSON: {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {{...}}}}, ...], "caption_summary": "2 short lines, same language as the narration", "headline": "caption first line: curiosity hook with the topic keyword, max 70 chars, 1 emoji", "hashtags": ["5 niche hashtags with #"], "key_terms": ["t1","t2","t3"]}}"""
+Return ONLY JSON: {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {{...}}}}, ...], "caption_summary": "2 short lines, same language as the narration", "headline": "caption first line: curiosity hook with the topic keyword, max 70 chars, 1 emoji", "hashtags": ["5 niche hashtags with #"], "freebie": "...", "key_terms": ["t1","t2","t3"]}}"""
 
-KINDS = {"hook", "bullets", "flow", "compare", "network", "code", "stat", "formula", "takeaway", "cta"}
+TRICK_PROMPT = """You write a 35-55 second "AI Trick of the Day" Instagram Reel in {language_style} for the faceless animated channel "{channel}".
+The viewer must be able to USE this trick right after watching.
+TRICK: {title}  /  {title_en}
+CORE FACTS (the ONLY facts you may state as true; never invent app features, prices, menu names or numbers): {facts}
+Keywords: {keywords}
+{feedback}{winners}
+LANGUAGE (critical): {language_instruction}
+{hook_rule}
+{cta_rule}
+STRUCTURE: 5 to 8 scenes. Scene 1 kind=hook showing the payoff. Use kind=chat to SHOW an example prompt and a realistic short
+AI reply when the trick involves a chatbot; use flow for steps, compare for before/after. Then kind=takeaway, last kind=cta.
+Each "narration": 8-28 words. Total narration about 90-150 words. No emojis/symbols in "narration".
+
+{schema}
+
+Return ONLY JSON: {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {{...}}}}, ...],
+ "caption_summary": "2 short lines, same language as the narration",
+ "headline": "caption first line: the payoff + main keyword, max 70 chars, 1 emoji",
+ "hashtags": ["5 niche hashtags for this exact trick, with #"],
+ "freebie": "...", "key_terms": ["t1","t2","t3"]}}"""
+
+KINDS = {"hook", "bullets", "flow", "compare", "network", "code", "stat", "formula", "takeaway", "chat", "cta"}
 
 def _s(x, n):
     return re.sub(r"\s+", " ", str(x or "")).strip()[:n]
@@ -122,6 +156,9 @@ def clean_scene(i, sc):
         elif kind == "takeaway":
             vis = {"text": _s(v.get("text"), 100), "terms": _list(v.get("terms"), 1, 3, 24)}
             assert vis["text"]
+        elif kind == "chat":
+            vis = {"user": _s(v.get("user"), 100), "ai": _s(v.get("ai"), 160)}
+            assert vis["user"] and vis["ai"]
         else:  # cta
             vis = {"text": _s(v.get("text"), 80) or "Agla lesson miss mat karna"}
     except (AssertionError, ValueError, TypeError) as e:
@@ -144,7 +181,8 @@ def validate(raw, min_scenes=5, max_scenes=10):
     terms = [_s(t, 28) for t in (raw.get("key_terms") or []) if _s(t, 28)][:3]
     tags = [("#" + re.sub(r"[^\w]", "", str(t)).lower()) for t in (raw.get("hashtags") or []) if re.sub(r"[^\w]", "", str(t))][:5]
     return {"scenes": scenes, "caption_summary": _s(raw.get("caption_summary"), 260), "key_terms": terms,
-            "headline": _s(raw.get("headline"), 90), "hashtags": tags}
+            "headline": _s(raw.get("headline"), 90), "hashtags": tags,
+            "freebie": re.sub(r"[ \t]+", " ", str(raw.get("freebie") or "")).strip()[:900]}
 
 def _script_text(script):
     return "\n".join(f"[{s['kind']}] SAY: {s['narration']} | SHOW: {s['visual']}" for s in script["scenes"])
@@ -291,6 +329,20 @@ def _language():
         language_instruction = "Hinglish in ROMAN script only (no Devanagari). Hindi words like hai, kaise, kyun, matlab, samjho; technical terms in English (model, data, neural network). Friendly, like explaining to a friend. No emojis or symbols like = * % in 'narration' (it is read aloud), write numbers/terms as words where needed."
     return language_style, language_instruction
 
+def _rules(kind):
+    """hook + call-to-action rules for a content type: (hook_rule, cta_rule, keyword)."""
+    en = C.LANGUAGE_MODE == "english_only"
+    if kind == "trick":
+        kw, what = "PROMPT", ("the exact prompt/steps" if en else "exact prompt/steps")
+        spec = '"the exact copy-paste prompt or the steps from this reel, max 600 chars, plain text"'
+    elif kind == "lesson":
+        kw, what = "NOTES", ("short revision notes" if en else "short revision notes")
+        spec = '"3-5 short revision bullet points of this lesson (each starting with •), max 600 chars"'
+    else:
+        kw, what = "AI", ("one more surprising fact" if en else "ek aur surprising fact")
+        spec = '"one more short surprising fact strictly from the CORE FACT, max 300 chars"'
+    return HOOK_RULE, CTA_RULE.format(keyword=kw, freebie_what=what, channel=C.SERIES_NAME, freebie_spec=spec), kw
+
 def _winners():
     return f"\nHOOKS THAT PERFORMED BEST ON THIS CHANNEL (learn their style, do not copy): {WINNERS}\n" if WINNERS else ""
 
@@ -304,7 +356,8 @@ def generate_lesson_script(lesson, num, next_lesson):
                                     analogy=lesson["analogy"] + (" (adapt it into English)" if en else ""),
                                     keywords=", ".join(lesson["keywords"]), winners=_winners(),
                                     next_title=next_lesson["title_en"] if en else next_lesson["title"], feedback=fb, schema=SCHEMA,
-                                    language_style=language_style, language_instruction=language_instruction)
+                                    language_style=language_style, language_instruction=language_instruction,
+                                    hook_rule=_rules("lesson")[0], cta_rule=_rules("lesson")[1])
     log(f"Writing lesson #{num}: {lesson['title_en']} ({language_style})")
     return _make(prompt, lesson["facts"], lesson["title_en"], 6, 10)
 
@@ -312,7 +365,7 @@ def generate_fun_fact_script(fact):
     def prompt(fb):
         style, instr = _language()
         return FUN_PROMPT.format(channel=C.SERIES_NAME, title=fact["title"], facts=fact["facts"], feedback=fb + _winners(), schema=SCHEMA,
-                                 language_style=style, language_instruction=instr)
+                                 language_style=style, language_instruction=instr, hook_rule=_rules("fun_fact")[0])
     log(f"Writing fun fact: {fact['title']}")
     return _make(prompt, fact["facts"], fact["title"], 4, 8)
 
@@ -354,3 +407,16 @@ def to_speech(narrations):
         good.append(dev if ok else None)
     log(f"  Devanagari speech ready for {sum(g is not None for g in good)}/{len(good)} scenes")
     return good
+
+
+def generate_trick_script(trick):
+    style, instr = _language()
+    hook_rule, cta_rule, _ = _rules("trick")
+    en = C.LANGUAGE_MODE == "english_only"
+    def prompt(fb):
+        return TRICK_PROMPT.format(channel=C.SERIES_NAME, title=trick["title_en"] if en else trick["title"],
+                                   title_en=trick["title_en"], facts=trick["facts"], keywords=", ".join(trick["keywords"]),
+                                   feedback=fb, winners=_winners(), language_style=style, language_instruction=instr,
+                                   hook_rule=hook_rule, cta_rule=cta_rule, schema=SCHEMA)
+    log(f"Writing AI trick: {trick['title_en']} ({style})")
+    return _make(prompt, trick["facts"], trick["title_en"], 5, 9)
