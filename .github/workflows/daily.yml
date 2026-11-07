@@ -104,3 +104,12 @@ jobs:
           FRESH_START: ${{ inputs.fresh_start || 'false' }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
           PYTHONPATH: cartoon-bot/src
+      - name: Save preview video (dry runs)
+        if: ${{ always() && inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-reel
+          path: |
+            work/final.mp4
+            work/cover.jpg
+          if-no-files-found: ignore
