@@ -154,17 +154,39 @@ LANGUAGE_MODE=hindi_only     # Pure Hindi (Hindi voice)
 
 ---
 
-## 📅 **Weekly Content Plan**
+## 📅 **Weekly Content Plan** (2 posts a day, Instagram + YouTube)
 
-| Day | Content | Comment keyword -> auto-reply sends |
+| Day | 08:00 IST | 19:00 IST |
 |---|---|---|
-| Mon / Wed / Fri | Course lesson (#1, #2, ...) | `NOTES` -> revision notes |
-| Tue / Thu / Sat | **AI Trick of the Day** (practical, most shareable; animated chat demo) | `PROMPT` -> the exact prompt/steps |
-| Sun | AI fun fact | `AI` -> one more fact |
+| Mon / Wed / Fri | Course lesson ("Lesson N/100") | AI Trick |
+| Tue / Thu / Sat | AI Trick | **AI News** (fresh story from free RSS; falls back to a trick) |
+| Sun | AI fun fact | AI Trick + **weekly long YouTube video at 20:53** |
 
-Change it with the variable `CONTENT_PLAN` (e.g. `mon:lesson,tue:trick,...`). Every script opens with a
-result-first hook. Manual runs: **Daily AIVerse reel** -> `content` (lesson/trick/fun_fact), `dry_run`
-(Telegram preview only), `post_now`, `fresh_start` (restart at Lesson #1, history backed up).
+Comment keywords -> auto-reply sends: `NOTES` (lesson notes), `PROMPT` (exact prompt), `NEWS` (3-line summary), `AI` (extra fact).
+Reels are 20-35 s, open with the hook visible on frame 0 and loop back to the start.
+Change with variables `POST_TIMES` (e.g. `08:00` for one post a day), `CONTENT_PLAN`, `CONTENT_PLAN_PM`.
+Manual runs: **Daily AIVerse reel** -> `content` (lesson/trick/news/fun_fact), `dry_run` (Telegram preview +
+downloadable video), `youtube_preview` (private upload), `post_now`, `fresh_start`.
+
+## 🆓 **Free-tier budget** (everything stays free)
+
+| Service | Free limit | Bot uses |
+|---|---|---|
+| GitHub Actions | unlimited for public repos | ~6 short jobs/day |
+| Gemini / Groq | free tiers | ~10 AI calls + 1 voice request per reel (Edge voice as backup) |
+| Supabase storage | 1 GB, 2 GB egress/month | keeps the newest 30 reels (~120 MB) |
+| YouTube Data API | 10,000 units/day | 2 uploads (3,200) + replies capped at 40/day (2,000) + weekly video |
+| GitHub Pages | free | Prompt Pack PDF + link-in-bio page + privacy policy |
+
+## 🧭 **Owner's checklist**
+
+1. Instagram bio link: `https://pranavnayee.github.io/aiverse-bot/links.html` · name `AIVerse | AI Hindi Mein` · pin Lesson #1.
+2. Meta token (every ~60 days, Telegram warns you): permissions `instagram_basic, instagram_content_publish,
+   instagram_manage_comments, instagram_manage_insights` (+ `pages_show_list, pages_read_engagement, pages_manage_posts`
+   for Facebook Reels, then set variable `FB_PAGE_ID`). Save with `gh secret set IG_ACCESS_TOKEN`.
+3. YouTube Studio -> Settings -> Channel -> Feature eligibility: verify your phone (custom thumbnails, links).
+4. Rebuild the Prompt Pack after adding tricks: `PYTHONPATH=cartoon-bot/src python cartoon-bot/tools/make_prompt_pack.py`.
+5. Weekly: read the Sunday Telegram report; reply to a few comments yourself; engage with 20-30 niche creators.
 
 ## 💰 **Monetization & Growth**
 
