@@ -2,6 +2,10 @@ name: Pre-flight check
 on:
   workflow_dispatch:
     inputs:
+      yt_admin:
+        description: "YouTube admin command, e.g. 'delete ID1 ID2' or 'post-lesson 1'"
+        type: string
+        default: ""
       youtube_test:
         description: "Upload the sample reel to the connected YouTube channel as PRIVATE"
         type: boolean
@@ -33,6 +37,18 @@ jobs:
         run: bash .github/setup-media.sh
       - run: pip install -r cartoon-bot/requirements.txt
       - run: python cartoon-bot/tests/offline_test.py
+      - name: YouTube admin
+        if: github.event_name == 'workflow_dispatch' && inputs.yt_admin != ''
+        run: python cartoon-bot/tools/yt_admin.py ${{ inputs.yt_admin }}
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET }}
+          LANGUAGE_MODE: ${{ vars.LANGUAGE_MODE || 'hinglish' }}
+          PYTHONPATH: cartoon-bot/src
       - name: YouTube test upload (private)
         if: github.event_name == 'workflow_dispatch' && inputs.youtube_test
         run: python cartoon-bot/tools/yt_upload_check.py

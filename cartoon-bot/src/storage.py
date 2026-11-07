@@ -64,3 +64,14 @@ def cleanup(prefix, keep=30):
         requests.delete(f"{_base()}/{C.SUPABASE_BUCKET()}", headers=_headers({"Content-Type": "application/json"}),
                         data=json.dumps({"prefixes": [f"{prefix}/{n}" for n in old]}), timeout=60)
         log(f"Cleaned {len(old)} old files")
+
+
+def list_names(prefix):
+    """File names under prefix, oldest first."""
+    r = requests.post(f"{C.SUPABASE_URL()}/storage/v1/object/list/{C.SUPABASE_BUCKET()}",
+                      headers=_headers({"Content-Type": "application/json"}), timeout=60,
+                      data=json.dumps({"prefix": prefix, "limit": 1000, "offset": 0,
+                                       "sortBy": {"column": "created_at", "order": "asc"}}))
+    if r.status_code != 200:
+        raise RuntimeError(f"Supabase list {prefix} failed {r.status_code}: {r.text[:200]}")
+    return [f["name"] for f in r.json() if f.get("name") and not f["name"].endswith("/")]
