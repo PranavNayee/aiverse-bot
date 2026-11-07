@@ -226,7 +226,7 @@ def _check_visual_consistency(script):
     return "pass"
 
 _SERIOUS = re.compile(r"incorrect|inaccurate|wrong|not exist|doesn't exist|invalid|misleading|error in|non-standard|"
-                      r"syntax|import|module|undefined|false|mistake", re.I)
+                      r"syntax|import|module|undefined|false|mistake|overstat|exaggerat|overclaim|overpromis|too strong|absolute", re.I)
 WINNERS = ""     # filled by lesson_main from analytics: hooks that performed best on this channel
 
 def _make(prompt_fn, facts, title_en, min_scenes, max_scenes, attempts=4):

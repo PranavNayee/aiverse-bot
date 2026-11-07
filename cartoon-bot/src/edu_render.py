@@ -19,7 +19,7 @@ INDIGO, GREEN, RED = (129, 140, 248), (74, 222, 128), (251, 113, 133)
 EN = os.environ.get("LANGUAGE_MODE", "hinglish") == "english_only"
 BRAND = (os.environ.get("SERIES_NAME") or "AIVerse").upper()[:14]
 UI = {"remember": "REMEMBER" if EN else "YAAD RAKHO", "next": "NEXT LESSON",
-      "daily": "A new AI lesson every day" if EN else "Roz ek naya AI lesson"}
+      "daily": "A new AI video every day" if EN else "Roz ek naya AI video"}
 TOP, BOTTOM = 270, 1290            # safe content band (captions live below, phone UI covers the very top/bottom)
 
 # ---------------------------------------------------------------- helpers
@@ -424,21 +424,26 @@ def s_takeaway(frame, d, v, t, dur, ctx):
     f, lines, size = fit(d, v["text"], 860, 330, 72, 42)
     for i, ln in enumerate(lines):
         ctext(d, 540, 760 + i * size * 1.2, ln, f, rgba(TEXT, ease_out(prog(t, .5 + .15 * i, .5))))
-    x = 540 - (len(v["terms"]) - 1) * 175
-    for i, term in enumerate(v["terms"]):
+    terms = v["terms"]
+    for size in range(40, 25, -2):                       # shrink until all pills fit on one row
+        fw = font(size)
+        widths = [d.textlength(tm, font=fw) + 56 for tm in terms]
+        if sum(widths) + 22 * (len(terms) - 1) <= W - 120:
+            break
+    x = 540 - (sum(widths) + 22 * (len(terms) - 1)) / 2
+    for i, (term, w) in enumerate(zip(terms, widths)):
         pi = ease_back(prog(t, 1.0 + i * .35, .5))
+        cx = x + w / 2; x += w + 22
         if pi <= 0:
             continue
-        fw = font(40)
-        w = d.textlength(term, font=fw) + 60
-        cx = 540 + (i - (len(v["terms"]) - 1) / 2) * 300
         cy = 1130
-        card(d, (cx - w / 2 * pi, cy - 42 * pi, cx + w / 2 * pi, cy + 42 * pi), 40, rgba(INDIGO, .35), rgba(INDIGO, 1), 3)
+        card(d, (cx - w / 2 * pi, cy - 40 * pi, cx + w / 2 * pi, cy + 40 * pi), 40, rgba(INDIGO, .35), rgba(INDIGO, 1), 3)
         ctext(d, cx, cy, term, fw, rgba(TEXT, clamp(pi)))
 
 def s_cta(frame, d, v, t, dur, ctx):
     acc = ctx["accent"]
-    ctext(d, 540, 450, UI["next"], font(46), rgba(acc, ease_out(prog(t, 0, .4))))
+    nxt = UI["next"] if str(ctx.get("label", "")).startswith("Lesson") else "NEXT VIDEO"
+    ctext(d, 540, 450, nxt, font(46), rgba(acc, ease_out(prog(t, 0, .4))))
     f, lines, size = fit(d, v["text"], 900, 380, 84, 48)
     for i, ln in enumerate(lines):
         ctext(d, 540, 600 + i * size * 1.2, ln, f, rgba(TEXT, ease_out(prog(t, .3 + .15 * i, .5))))
