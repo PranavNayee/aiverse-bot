@@ -2,6 +2,10 @@ name: Pre-flight check
 on:
   workflow_dispatch:
     inputs:
+      youtube_test:
+        description: "Upload the sample reel to the connected YouTube channel as PRIVATE"
+        type: boolean
+        default: false
       voice_samples:
         description: "Also render voice samples (all voices, Hinglish + English) as a downloadable artifact"
         type: boolean
@@ -29,6 +33,15 @@ jobs:
         run: bash .github/setup-media.sh
       - run: pip install -r cartoon-bot/requirements.txt
       - run: python cartoon-bot/tests/offline_test.py
+      - name: YouTube test upload (private)
+        if: github.event_name == 'workflow_dispatch' && inputs.youtube_test
+        run: python cartoon-bot/tools/youtube_test.py
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          LANGUAGE_MODE: ${{ vars.LANGUAGE_MODE || 'hinglish' }}
+          PYTHONPATH: cartoon-bot/src
       - uses: actions/upload-artifact@v4
         if: always()
         with:

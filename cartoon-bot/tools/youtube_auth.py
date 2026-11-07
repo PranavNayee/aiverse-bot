@@ -7,7 +7,7 @@ OAuth consent screen (External, add yourself as a test user, then "Publish app")
 Create OAuth client ID -> type "Desktop app". Use that client id/secret here.
 A browser opens; pick the YouTube channel to post to. The refresh token is then saved to the GitHub
 secrets (via the gh CLI) - it is never printed."""
-import http.server, json, subprocess, sys, threading, urllib.parse, urllib.request, webbrowser
+import http.server, json, os, subprocess, sys, threading, urllib.parse, urllib.request, webbrowser
 
 PORT = 8765
 SCOPE = ("https://www.googleapis.com/auth/youtube.upload "      # upload Shorts
@@ -52,8 +52,10 @@ def main():
     chans = json.loads(urllib.request.urlopen(req).read()).get("items", [])
     name = chans[0]["snippet"]["title"] if chans else "?"
     print(f"Connected YouTube channel: {name}")
-    if input(f"Post AIVerse Shorts to '{name}'? Type yes to save: ").strip().lower() != "yes":
-        sys.exit("Not saved. Run again and pick the right channel.")
+    expected = os.environ.get("YT_EXPECTED_CHANNEL", "AIVerse")
+    if name.strip().lower() != expected.strip().lower():      # works without a keyboard prompt (e.g. `! cmd`)
+        sys.exit(f"❌ That is '{name}', not '{expected}'. Nothing saved - run again and pick the {expected} channel "
+                 f"(or set YT_EXPECTED_CHANNEL).")
     for name, val in (("YT_CLIENT_ID", cid), ("YT_CLIENT_SECRET", secret), ("YT_REFRESH_TOKEN", tok["refresh_token"])):
         subprocess.run(["gh", "secret", "set", name], input=val.encode(), check=True)
     print("✅ Saved YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN to GitHub secrets. Shorts cross-posting is on.")

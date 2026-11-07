@@ -86,7 +86,11 @@ def reply(tok, parent_id, text):
 @retry(tries=3, delay=10)
 def upload(video_url, caption, headline, topic, tags=()):
     """Downloads the reel from storage and uploads it as a public Short. Returns the YouTube video id."""
-    data = requests.get(video_url, timeout=300).content
+    if os.path.exists(video_url):                      # local file (tests) or storage URL (normal posts)
+        with open(video_url, "rb") as f:
+            data = f.read()
+    else:
+        data = requests.get(video_url, timeout=300).content
     if len(data) < 50_000:
         raise RuntimeError("could not download the reel for YouTube")
     tok = _access_token()
