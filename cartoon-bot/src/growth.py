@@ -11,6 +11,7 @@ from instagram import GRAPH, _check
 from util import log
 
 MAX_REPLIES = int(os.environ.get("MAX_REPLIES_PER_RUN", "12"))
+YT_DAILY_REPLIES = int(os.environ.get("YT_DAILY_REPLIES", "40"))      # 40 x 50 units = 2,000 of the free 10,000/day
 METRICS = ["views", "reach", "likes", "comments", "shares", "saved", "total_interactions", "ig_reels_avg_watch_time"]
 FALLBACK_METRICS = ["reach", "likes", "comments", "shares", "saved"]
 
@@ -159,15 +160,22 @@ def yt_reply_comments():
     import youtube
     if not youtube.enabled():
         return 0, None
+    eng = storage.get_json("engage.json", {})
+    today = slots.now().strftime("%Y-%m-%d")              # YouTube free quota: 10,000 units/day; a reply costs 50
+    if eng.get("yt_day") != today:
+        eng["yt_day"], eng["yt_replies_today"] = today, 0
+    budget = max(0, YT_DAILY_REPLIES - eng.get("yt_replies_today", 0))
+    if not budget:
+        log("YouTube reply budget for today used up (keeps the bot inside the free API quota)")
+        return 0, None
     tok = youtube._access_token()
     me, threads = youtube.recent_comment_threads(tok)
-    eng = storage.get_json("engage.json", {})
     done = set(eng.get("yt_replied", []))
     by_vid = {h.get("youtube_id"): h for h in storage.get_json("history.json", []) if h.get("youtube_id")}
     lang = "English" if C.LANGUAGE_MODE == "english_only" else "Hinglish"
     sent = 0
     for th in threads:
-        if sent >= MAX_REPLIES:
+        if sent >= min(MAX_REPLIES, budget):
             break
         tid = th["id"]; top = th["snippet"]["topLevelComment"]["snippet"]
         author_ch = (top.get("authorChannelId") or {}).get("value")
@@ -198,8 +206,9 @@ def yt_reply_comments():
                 eng["yt_replied"] = list(done)[-3000:]; storage.put_json("engage.json", eng)
                 return sent, str(e)
     eng["yt_replied"] = list(done)[-3000:]
+    eng["yt_replies_today"] = eng.get("yt_replies_today", 0) + sent
     storage.put_json("engage.json", eng)
-    log(f"YouTube: replied to {sent} comments")
+    log(f"YouTube: replied to {sent} comments ({eng['yt_replies_today']}/{YT_DAILY_REPLIES} today)")
     return sent, None
 
 

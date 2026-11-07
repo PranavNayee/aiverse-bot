@@ -13,7 +13,9 @@ UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos"
 API = "https://www.googleapis.com/youtube/v3"
 PLAYLISTS = {"lesson": ("AI Course in Hindi - Lesson by Lesson", "AI aur Machine Learning basics se advanced tak, Hinglish mein. Lesson #1 se shuru karo!"),
              "trick": ("AI Tricks & ChatGPT Tips", "Roz ek AI trick jo aapka time bachaye - ChatGPT prompts, Google Lens, AI tools."),
-             "fun_fact": ("AI Fun Facts", "AI ki interesting duniya - har Sunday ek naya fact.")}
+             "fun_fact": ("AI Fun Facts", "AI ki interesting duniya - har Sunday ek naya fact."),
+             "weekly": ("This Week in AI (Hinglish)", "Har hafte ke saare AI lessons, tricks aur news ek video mein."),
+             "news": ("AI News in Hindi", "AI ki latest news - naye features aur tools, simple Hinglish mein.")}
 
 
 def _lang():
@@ -93,7 +95,7 @@ def reply(tok, parent_id, text):
 
 
 @retry(tries=3, delay=10)
-def upload(video_url, caption, headline, topic, tags=()):
+def upload(video_url, caption, headline, topic, tags=(), title=None, shorts=True):
     """Downloads the reel from storage and uploads it as a public Short. Returns the YouTube video id."""
     if os.path.exists(video_url):                      # local file (tests) or storage URL (normal posts)
         with open(video_url, "rb") as f:
@@ -103,8 +105,13 @@ def upload(video_url, caption, headline, topic, tags=()):
     if len(data) < 50_000:
         raise RuntimeError("could not download the reel for YouTube")
     tok = _access_token()
-    desc = re.sub(r"[<>]", "", caption)[:4800]
-    meta = {"snippet": {"title": _title(headline, topic), "description": desc,
+    desc = re.sub(r"[<>]", "", caption).replace("link in bio", "link below").replace("link bio mein", "link neeche")
+    links = os.environ.get("LINKS_URL", "https://pranavnayee.github.io/aiverse-bot/links.html")
+    if links and links not in desc:
+        desc += f"\n\n🎁 Free AI Prompt Pack: {links}"
+    desc = desc[:4800]
+    meta = {"snippet": {"title": (title or _title(headline, topic))[:100] if not shorts else _title(headline, topic),
+                        "description": desc,
                         "tags": [t.lstrip("#") for t in tags][:15] + ["AI", "machine learning", "shorts"],
                         "categoryId": "27", "defaultLanguage": _lang(), "defaultAudioLanguage": _lang()},
             "status": {"privacyStatus": os.environ.get("YT_PRIVACY", "public"), "selfDeclaredMadeForKids": False}}
@@ -118,5 +125,22 @@ def upload(video_url, caption, headline, topic, tags=()):
     if up.status_code not in (200, 201):
         raise RuntimeError(f"YouTube upload failed {up.status_code}: {up.text[:300]}")
     vid = up.json().get("id")
-    log("YouTube Short uploaded:", vid)
+    log("YouTube Short uploaded:" if shorts else "YouTube video uploaded:", vid)
     return vid
+
+
+def set_thumbnail(video_id, jpg_path, tok=None):
+    """Custom thumbnails need a phone-verified channel; failure is harmless."""
+    try:
+        tok = tok or _access_token()
+        with open(jpg_path, "rb") as f:
+            r = requests.post("https://www.googleapis.com/upload/youtube/v3/thumbnails/set", params={"videoId": video_id},
+                              headers={"Authorization": f"Bearer {tok}", "Content-Type": "image/jpeg"}, data=f.read(),
+                              timeout=120)
+        if r.status_code >= 300:
+            raise RuntimeError(f"{r.status_code}: {r.text[:200]}")
+        log("Thumbnail set")
+        return True
+    except Exception as e:
+        log("Thumbnail not set (verify your phone in YouTube Studio to unlock custom thumbnails):", e)
+        return False

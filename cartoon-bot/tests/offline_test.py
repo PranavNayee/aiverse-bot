@@ -10,11 +10,13 @@ shutil.rmtree(W, ignore_errors=True); os.makedirs(W)
 # ---------------------------------------------------------------- scheduling
 IST = slots.TZ
 at = lambda y, mo, d, h, mi: dt.datetime(y, mo, d, h, mi, tzinfo=IST)
-assert slots.key(slots.upcoming_slot(at(2026, 11, 6, 20, 17))) == "2026-11-07"     # evening run -> tomorrow 08:00
-assert slots.key(slots.upcoming_slot(at(2026, 11, 7, 5, 23))) == "2026-11-07"      # early backup -> today 08:00
-assert slots.key(slots.upcoming_slot(at(2026, 11, 7, 15, 3))) == "2026-11-07"      # very late cron -> still today
-assert slots.key(slots.upcoming_slot(at(2026, 11, 7, 19, 0))) == "2026-11-08"      # after grace -> tomorrow
-assert slots.is_weekend(slots.upcoming_slot(at(2026, 11, 6, 21, 0)))                # Friday night makes Saturday's reel
+up = lambda *a, done=(): slots.key(slots.upcoming_slot(at(*a), done=set(done)))
+assert up(2026, 11, 6, 20, 17, done=["2026-11-06-1900"]) == "2026-11-07"      # evening run -> tomorrow 08:00
+assert up(2026, 11, 7, 5, 23) == "2026-11-07"                                    # early backup -> today 08:00
+assert up(2026, 11, 7, 9, 30) == "2026-11-07"                                    # a bit late -> still the 08:00 slot
+assert up(2026, 11, 7, 12, 43, done=["2026-11-07"]) == "2026-11-07-1900"        # midday run -> 19:00 slot
+assert up(2026, 11, 7, 15, 3) == "2026-11-07-1900"                               # 08:00 grace over -> 19:00
+assert slots.is_weekend(slots.upcoming_slot(at(2026, 11, 6, 21, 0), done={"2026-11-06-1900"}))
 print("schedule ok")
 
 # ---------------------------------------------------------------- syllabus counters survive history trimming
@@ -26,6 +28,8 @@ assert syllabus.get_next_trick([{"type": "trick", "trick_idx": 2}])["idx"] == 3
 import lesson_main
 kinds = [lesson_main.content_kind(at(2026, 11, d, 8, 0)) for d in range(9, 16)]     # Mon 9 Nov .. Sun 15 Nov
 assert kinds == ["lesson", "trick", "lesson", "trick", "lesson", "trick", "fun_fact"], kinds
+pm = [lesson_main.content_kind(at(2026, 11, d, 19, 0)) for d in range(9, 16)]
+assert pm == ["trick", "news", "trick", "news", "trick", "news", "trick"], pm
 print("syllabus + weekly plan ok")
 
 # ---------------------------------------------------------------- render

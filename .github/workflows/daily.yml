@@ -1,5 +1,5 @@
 name: Daily AIVerse reel
-# Makes tomorrow's reel the NIGHT BEFORE and queues it for 08:00 IST (POST_TIME).
+# Makes each reel ahead of its slot (08:00 and 19:00 IST by default, POST_TIMES) and queues it.
 # GitHub cron is often hours late or skipped, so there are several backup triggers; every run after the
 # first sees the reel is already made/posted and exits in seconds. Runs that start <5.5 h before the slot
 # also stay alive and publish exactly on time (the 'Post approved reel' workflow does the same).
@@ -9,6 +9,9 @@ on:
     - cron: "23 17 * * *"   # 22:53 IST  (backup)
     - cron: "11 21 * * *"   # 02:41 IST  (backup, waits and posts at 08:00)
     - cron: "53 23 * * *"   # 05:23 IST  (last backup, waits and posts at 08:00)
+    - cron: "13 7 * * *"    # 12:43 IST  (makes the 19:00 reel)
+    - cron: "37 9 * * *"    # 15:07 IST  (backup for 19:00, waits and posts)
+    - cron: "49 11 * * *"   # 17:19 IST  (last backup for 19:00)
   workflow_dispatch:
     inputs:
       post_now:
@@ -22,7 +25,7 @@ on:
       content:
         description: "What to make"
         type: choice
-        options: [auto, lesson, trick, fun_fact]
+        options: [auto, lesson, trick, news, fun_fact]
         default: auto
       fresh_start:
         description: "Restart the series at Lesson #1 (backs up and clears history + stats)"
@@ -67,7 +70,7 @@ jobs:
       - run: pip install -r cartoon-bot/requirements.txt
       - name: Keep schedules alive
         continue-on-error: true
-        run: gh workflow enable daily.yml && gh workflow enable post.yml && gh workflow enable engage.yml
+        run: gh workflow enable daily.yml && gh workflow enable post.yml && gh workflow enable engage.yml && gh workflow enable weekly.yml
         env:
           GH_TOKEN: ${{ github.token }}
       - run: python cartoon-bot/src/lesson_main.py
@@ -101,6 +104,7 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           SERIES_NAME: ${{ vars.SERIES_NAME || 'AIVerse' }}
+          POST_TIMES: ${{ vars.POST_TIMES || '08:00,19:00' }}
           POST_NOW: ${{ inputs.post_now || 'false' }}
           FORCE_NEW: ${{ inputs.force_new || 'false' }}
           STRICT_VOICE: ${{ inputs.strict_voice || 'false' }}

@@ -14,7 +14,8 @@ EMOJI_FONTS = [(FONT_DIR + "NotoColorEmoji.ttf", 109), ("/usr/share/fonts/noto/N
 
 TEXT, MUTED, DARK = (244, 246, 255), (156, 166, 196), (12, 14, 34)
 LEVEL_COLOR = {"basics": (45, 212, 191), "intermediate": (251, 191, 36), "advanced": (244, 114, 182),
-               "weekend": (167, 139, 250), "trick": (251, 146, 60)}
+               "weekend": (167, 139, 250), "trick": (251, 146, 60),
+               "news": (248, 113, 113)}
 INDIGO, GREEN, RED = (129, 140, 248), (74, 222, 128), (251, 113, 133)
 EN = os.environ.get("LANGUAGE_MODE", "hinglish") == "english_only"
 BRAND = (os.environ.get("SERIES_NAME") or "AIVerse").upper()[:14]
@@ -192,7 +193,7 @@ def chrome(frame, ctx, t):
 def s_hook(frame, d, v, t, dur, ctx):
     acc = ctx["accent"]
     e = emoji_img(v.get("emoji") or "🤔", 300)
-    pop = ease_back(prog(t, 0.05, 0.6))
+    pop = max(0.55, ease_back(prog(t, 0.0, 0.3)))     # visible on frame 0 (autoplay preview + first second)
     ring = 0.5 + 0.5 * math.sin(TAU * 0.7 * t)
     for k in (0, 1):                                   # pulsing rings behind the emoji
         r = 250 + 55 * ((ring + k * .5) % 1)
@@ -204,10 +205,10 @@ def s_hook(frame, d, v, t, dur, ctx):
         put(frame, e, 540, 600 + 10 * math.sin(TAU * 0.6 * t), pop)
     f, lines, size = fit(d, v["text"], 900, 400, 100, 56)
     y0 = 960
+    k = 1.12 - 0.12 * ease_out(prog(t, 0.0, 0.35))      # punch-in: starts 12% bigger, settles in 0.35 s
+    fk = font(int(size * k))
     for i, ln in enumerate(lines):
-        p = ease_out(prog(t, 0.35 + 0.18 * i, 0.5))
-        if p > 0:  # Only draw if visible
-            ctext(d, 540, y0 + i * size * 1.2 + (1 - p) * 50, ln, f, rgba(TEXT, p))
+        ctext(d, 540, y0 + i * size * 1.2 * k, ln, fk, rgba(TEXT, 1.0))
     wbar = 560 * ease_out(prog(t, 0.9, 0.7))
     if wbar > 2:  # Only draw bar if it's visible
         d.rounded_rectangle((540 - wbar / 2, y0 + len(lines) * size * 1.2 + 20, 540 + wbar / 2, y0 + len(lines) * size * 1.2 + 32), 6, fill=rgba(acc))

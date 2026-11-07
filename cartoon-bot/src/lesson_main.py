@@ -28,6 +28,7 @@ def _optimize_scene_pacing(scenes):
 
 EN = C.LANGUAGE_MODE == "english_only"
 TXT = {
+    "pack": "🎁 Free AI Prompt Pack (25 prompts) - link in bio!" if EN else "🎁 Free AI Prompt Pack (25 prompts) - link bio mein!",
     "save": "Save this for later and share it with a friend who is learning AI 🔖" if EN else
             "Save karo baad ke liye aur us dost ko bhejo jo AI seekh raha hai 🔖",
     "ask": "💬 Comment \"{kw}\" and I'll reply with {what}!" if EN else
@@ -39,7 +40,7 @@ TXT = {
 BASE_TAGS = [C.BRAND_TAG, "#learnai", "#artificialintelligence"] + (["#aiexplained"] if EN else ["#aiinhindi"])
 
 
-FREEBIE = {"PROMPT": "the exact prompt" if EN else "exact prompt", "NOTES": "quick revision notes" if EN else "revision notes",
+FREEBIE = {"NEWS": "a 3-line summary" if EN else "3-line summary", "PROMPT": "the exact prompt" if EN else "exact prompt", "NOTES": "quick revision notes" if EN else "revision notes",
            "AI": "one more surprising fact" if EN else "ek aur surprising fact"}
 
 
@@ -48,7 +49,7 @@ def _caption(headline, title_line, summary, terms, tags, kw="NOTES"):
     parts = [headline, "", title_line, "", summary or TXT["default"]]
     if terms:
         parts += ["", f"💡 {TXT['terms']}: " + " · ".join(terms[:3])]
-    parts += ["", TXT["ask"].format(kw=kw, what=FREEBIE.get(kw, "")), TXT["save"], TXT["follow"].format(h=C.SERIES_NAME.replace(' ', '').lower()), "",
+    parts += ["", TXT["ask"].format(kw=kw, what=FREEBIE.get(kw, "")), TXT["pack"], TXT["save"], TXT["follow"].format(h=C.SERIES_NAME.replace(' ', '').lower()), "",
               " ".join(tags)]
     cap = "\n".join(parts)
     log(f"Caption: {len(cap)} chars")
@@ -68,6 +69,12 @@ def build_fun_fact_caption(script, topic):
                     script.get("hashtags", []) + ["#aifacts", "#didyouknow"], kw="AI")
 
 
+def build_news_caption(script, title):
+    headline = script.get("headline") or f"📰 {title}"
+    return _caption(headline, f"📰 AI News · {title}", script.get("caption_summary", ""), script.get("key_terms", []),
+                    script.get("hashtags", []) + ["#ainews", "#technews"], kw="NEWS")
+
+
 def build_trick_caption(script, title):
     headline = script.get("headline") or f"🛠️ {title}"
     label = "AI Trick of the Day" if EN else "AI Trick of the Day"
@@ -77,7 +84,9 @@ def build_trick_caption(script, title):
 
 def generate_lesson_video(lesson, lesson_num, script):
     """Voice -> one soundtrack -> one single-pass 2D animated render. Returns (video, seconds, cover jpg)."""
-    label = (f"Lesson #{lesson_num}" if lesson_num else "AI Trick" if lesson.get("level") == "trick" else "Fun Fact")
+    lvl = lesson.get("level")
+    label = (f"Lesson {lesson_num}/{syllabus.TOTAL}" if lesson_num else "AI Trick" if lvl == "trick" else
+             "AI News" if lvl == "news" else "Fun Fact")
     log(f"🎬 Rendering {label}: {lesson['title']}")
     shutil.rmtree("work", ignore_errors=True)
     os.makedirs("work")
@@ -117,13 +126,31 @@ def content_kind(slot):
     want = os.environ.get("CONTENT_TYPE", "auto").strip().lower()      # auto | lesson | trick | fun_fact
     if want in ("lesson", "trick", "fun_fact"):
         return want
-    return C.CONTENT_PLAN.get(DAYS[slot.weekday()], "lesson").strip()
+    plan = C.CONTENT_PLAN if slots.index(slot) == 0 else C.CONTENT_PLAN_PM
+    return plan.get(DAYS[slot.weekday()], "lesson").strip()
 
 
 def build_content(history, slot):
     """Picks the slot's content from the weekly plan (C.CONTENT_PLAN) for the POSTING day."""
     kind = content_kind(slot)
-    base = dict(lesson_num=None, fact_idx=None, trick_idx=None)
+    base = dict(lesson_num=None, fact_idx=None, trick_idx=None, news_url=None)
+    if kind == "news":
+        import news
+        story = None
+        try:
+            story = news.pick(used_links={h.get("news_url") for h in history if h.get("news_url")},
+                              used_titles={h.get("topic") for h in history if h.get("type") == "news"})
+        except Exception as e:
+            log("News skipped:", e)
+        if story:
+            log("📰 AI News reel")
+            script = lesson_script.generate_news_script(story)
+            title = story["title_en"] if EN else story["title"]
+            lesson = {"title": title, "title_en": story["title_en"], "level": "news"}
+            return dict(base, script=script, lesson=lesson, news_url=story["link"], type="news", level="news",
+                        keyword="NEWS", topic=title, caption=build_news_caption(script, title))
+        log("No good news story - making an AI trick instead")
+        kind = "trick"
     if kind == "fun_fact":
         log("🎉 Fun fact day")
         fact = syllabus.get_fun_fact(history)
@@ -178,15 +205,19 @@ def run_lesson_generation():
     if post_now:                                    # manual "make one and post it right now"
         slot = slots.now()
         key = slot.strftime("%Y-%m-%d-now%H%M")
-    else:
-        slot = slots.upcoming_slot()
-        key = slots.key(slot)
-    log(f"🗓️ Target slot: {slots.fmt(slot)} (key {key}, review mode: {C.REVIEW_MODE})")
-
     if os.environ.get("FRESH_START", "false").lower() == "true":
         fresh_start()
     history = storage.get_json("history.json", [])
     pending = storage.get_json("pending.json", None)
+    if not post_now:
+        slot = slots.upcoming_slot(done={h.get("slot") for h in history})
+        key = slots.key(slot)
+    log(f"🗓️ Target slot: {slots.fmt(slot)} (key {key}, review mode: {C.REVIEW_MODE})")
+    if (pending and not post_now and not force_new and pending.get("slot") != key
+            and time.time() < float(pending.get("post_at", 0)) + 3 * 3600):
+        log(f"✅ An earlier reel ({pending.get('slot')}) is still queued - handing over to the poster first.")
+        publisher.run(wait=True)
+        return
     if not force_new and not post_now:
         if any(h.get("slot") == key for h in history):
             log(f"✅ The {key} reel is already posted - nothing to do.")
@@ -228,6 +259,7 @@ def run_lesson_generation():
         "slot": key, "post_at": int(post_at), "video_url": url, "cover_url": cover_url, "caption": c["caption"],
         "topic": c["topic"], "type": c["type"], "lesson_num": c["lesson_num"], "fact_idx": c["fact_idx"],
         "trick_idx": c["trick_idx"], "keyword": c["keyword"], "freebie": c["script"].get("freebie", ""),
+        "news_url": c.get("news_url"),
         "level": c["level"], "duration": round(duration, 1), "fact_check": c["script"].get("fact_check", "pass"),
         "hook": c["script"]["scenes"][0]["narration"], "headline": c["script"].get("headline", ""),
         "created_ts": int(time.time()), "attempts": 0, "status": "queued",

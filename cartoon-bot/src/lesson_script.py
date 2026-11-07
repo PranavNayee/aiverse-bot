@@ -20,12 +20,13 @@ SCHEMA = """Scene kinds and their "visual" fields (keep texts SHORT, they appear
 
 HOOK_RULE = """HOOK (critical for views): the first sentence must promise a concrete PAYOFF or show a surprising real-life RESULT
 the viewer gets (e.g. "Ek prompt se 1 ghante ka kaam 2 minute mein"), never a vague question like "Kya aap jaante hain AI kya hai?".
-Talk to ONE viewer ("aap"/"you"). No greetings, no channel intro."""
+Talk to ONE viewer ("aap"/"you"). No greetings, no channel intro.
+LOOP: make the very last sentence flow naturally back into the first line, so the reel feels seamless when it replays."""
 
 CTA_RULE = """LAST SCENE kind=cta: tell viewers to comment the word {keyword} to get {freebie_what} in the reply, then follow {channel}.
 Also return "freebie": {freebie_spec}"""
 
-LESSON_PROMPT = """You write a 45-60 second Instagram Reel lesson for an Indian audience, in {language_style}, for a faceless animated channel called "{channel}".
+LESSON_PROMPT = """You write a 25-35 second Instagram Reel / YouTube Short lesson for an Indian audience, in {language_style}, for a faceless animated channel called "{channel}".
 
 LESSON #{num} ({level}): {title}  /  {title_en}
 CORE FACTS (the ONLY facts you may state as true): {facts}
@@ -38,8 +39,8 @@ LANGUAGE (critical): {language_instruction}
 {cta_rule}
 ACCURACY (critical): Do not invent statistics, dates, names, prices or claims beyond the CORE FACTS. If the analogy is imperfect, say "roughly" or "approximately". Never mention politics or religion.
 
-STRUCTURE: 7 to 9 scenes. Scene 1 kind=hook (narration 8-14 words). Then analogy, concept breakdown (use different visual kinds: flow / compare / network / bullets / formula / code / stat where they truly fit the topic), an example, then kind=takeaway, last kind=cta (narration 12-24 words: the comment-keyword offer, tease the next lesson, ask to follow).
-Each scene "narration": 12-30 words (hook and cta may be shorter). Total narration about 120-170 words.
+STRUCTURE: 6 to 7 scenes. Scene 1 kind=hook (narration 7-12 words). Then analogy, concept breakdown (use different visual kinds: flow / compare / network / bullets / formula / code / stat where they truly fit the topic), an example, then kind=takeaway, last kind=cta (narration 12-24 words: the comment-keyword offer, tease the next lesson, ask to follow).
+Each scene "narration": 8-18 words (hook and cta may be shorter). Total narration about 70-100 words. Fast, punchy, no filler.
 Visuals must show THIS lesson's real content (real step names, real layer sizes, real formula), never generic placeholders.
 
 {schema}
@@ -64,20 +65,20 @@ Check: (1) every claim is correct and consistent with the reference facts and st
 Verdict: "pass" = fine; "minor" = small wording issues only; "major" = any factual error, misleading claim, wrong formula/code, or off-topic.
 Return ONLY JSON: {{"verdict": "pass|minor|major", "issues": ["short description of each problem and how to fix it"]}}"""
 
-FUN_PROMPT = """You write a 35-45 second weekend "AI fun fact" Instagram Reel in {language_style} for the channel "{channel}".
+FUN_PROMPT = """You write a 20-30 second "AI fun fact" Instagram Reel / YouTube Short in {language_style} for the channel "{channel}".
 LANGUAGE (critical): {language_instruction}
 {hook_rule}
 TOPIC: {title}
 CORE FACT (the ONLY fact you may state): {facts}
 {feedback}
-Rules: friendly, surprising, accurate. Do not add facts, numbers or dates beyond the core fact. No emojis/symbols in "narration". 5 to 6 scenes: hook, 2-3 story/explain scenes (use stat / bullets / flow / compare kinds), takeaway, cta (tell viewers to comment AI for one more surprising fact, then follow).
+Rules: friendly, surprising, accurate. Do not add facts, numbers or dates beyond the core fact. No emojis/symbols in "narration". 5 scenes, total narration 55-80 words: hook, 2-3 story/explain scenes (use stat / bullets / flow / compare kinds), takeaway, cta (tell viewers to comment AI for one more surprising fact, then follow).
 Also return "freebie": one more short surprising fact strictly from the CORE FACT, max 300 chars.
 
 {schema}
 
 Return ONLY JSON: {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {{...}}}}, ...], "caption_summary": "2 short lines, same language as the narration", "headline": "caption first line: curiosity hook with the topic keyword, max 70 chars, 1 emoji", "hashtags": ["5 niche hashtags with #"], "freebie": "...", "key_terms": ["t1","t2","t3"]}}"""
 
-TRICK_PROMPT = """You write a 35-55 second "AI Trick of the Day" Instagram Reel in {language_style} for the faceless animated channel "{channel}".
+TRICK_PROMPT = """You write a 25-35 second "AI Trick of the Day" Instagram Reel / YouTube Short in {language_style} for the faceless animated channel "{channel}".
 The viewer must be able to USE this trick right after watching.
 TRICK: {title}  /  {title_en}
 CORE FACTS (the ONLY facts you may state as true; never invent app features, prices, menu names or numbers): {facts}
@@ -86,9 +87,9 @@ Keywords: {keywords}
 LANGUAGE (critical): {language_instruction}
 {hook_rule}
 {cta_rule}
-STRUCTURE: 5 to 8 scenes. Scene 1 kind=hook showing the payoff. Use kind=chat to SHOW an example prompt and a realistic short
+STRUCTURE: 5 to 7 scenes. Scene 1 kind=hook showing the payoff. Use kind=chat to SHOW an example prompt and a realistic short
 AI reply when the trick involves a chatbot; use flow for steps, compare for before/after. Then kind=takeaway, last kind=cta.
-Each "narration": 8-28 words. Total narration about 90-150 words. No emojis/symbols in "narration".
+Each "narration": 8-18 words. Total narration about 65-95 words. No emojis/symbols in "narration".
 
 {schema}
 
@@ -97,6 +98,24 @@ Return ONLY JSON: {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {
  "headline": "caption first line: the payoff + main keyword, max 70 chars, 1 emoji",
  "hashtags": ["5 niche hashtags for this exact trick, with #"],
  "freebie": "...", "key_terms": ["t1","t2","t3"]}}"""
+
+NEWS_PROMPT = """You write a 20-30 second "AI News" Instagram Reel / YouTube Short in {language_style} for the faceless animated channel "{channel}".
+STORY: {title}  /  {title_en}
+FACTS (the ONLY facts you may state; never add numbers, dates, prices, countries or availability that are not here): {facts}
+{feedback}{winners}
+LANGUAGE (critical): {language_instruction}
+{hook_rule}
+{cta_rule}
+STRUCTURE: 5 to 6 scenes: hook (the news as a surprising payoff), what happened, what it means for a normal user (say
+"reportedly" or "according to the news" if unsure), a takeaway, then cta. Use stat / bullets / flow / compare / chat kinds.
+Each "narration": 8-18 words. Total narration about 60-85 words. No emojis/symbols in "narration".
+
+{schema}
+
+Return ONLY JSON: {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {{...}}}}, ...],
+ "caption_summary": "2 short lines, same language as the narration",
+ "headline": "caption first line: the news hook + main keyword, max 70 chars, 1 emoji",
+ "hashtags": ["5 hashtags for this story, with #"], "freebie": "...", "key_terms": ["t1","t2","t3"]}}"""
 
 KINDS = {"hook", "bullets", "flow", "compare", "network", "code", "stat", "formula", "takeaway", "chat", "cta"}
 
@@ -176,8 +195,8 @@ def validate(raw, min_scenes=5, max_scenes=10):
     if len({s["kind"] for s in scenes}) < 3:
         raise ValueError("use at least 3 different visual kinds")
     total = sum(len(s["narration"].split()) for s in scenes)
-    if not (80 <= total <= 210):
-        raise ValueError(f"total narration is {total} words (need about 110-170)")
+    if not (50 <= total <= 150):
+        raise ValueError(f"total narration is {total} words (need about 65-100, keep it short)")
     terms = [_s(t, 28) for t in (raw.get("key_terms") or []) if _s(t, 28)][:3]
     tags = [("#" + re.sub(r"[^\w]", "", str(t)).lower()) for t in (raw.get("hashtags") or []) if re.sub(r"[^\w]", "", str(t))][:5]
     return {"scenes": scenes, "caption_summary": _s(raw.get("caption_summary"), 260), "key_terms": terms,
@@ -338,6 +357,9 @@ def _rules(kind):
     elif kind == "lesson":
         kw, what = "NOTES", ("short revision notes" if en else "short revision notes")
         spec = '"3-5 short revision bullet points of this lesson (each starting with •), max 600 chars"'
+    elif kind == "news":
+        kw, what = "NEWS", ("a 3-line summary" if en else "3-line summary")
+        spec = '"a 3-line plain summary of this story strictly from the FACTS, max 400 chars"'
     else:
         kw, what = "AI", ("one more surprising fact" if en else "ek aur surprising fact")
         spec = '"one more short surprising fact strictly from the CORE FACT, max 300 chars"'
@@ -359,7 +381,7 @@ def generate_lesson_script(lesson, num, next_lesson):
                                     language_style=language_style, language_instruction=language_instruction,
                                     hook_rule=_rules("lesson")[0], cta_rule=_rules("lesson")[1])
     log(f"Writing lesson #{num}: {lesson['title_en']} ({language_style})")
-    return _make(prompt, lesson["facts"], lesson["title_en"], 6, 10)
+    return _make(prompt, lesson["facts"], lesson["title_en"], 5, 8)
 
 def generate_fun_fact_script(fact):
     def prompt(fb):
@@ -420,3 +442,16 @@ def generate_trick_script(trick):
                                    hook_rule=hook_rule, cta_rule=cta_rule, schema=SCHEMA)
     log(f"Writing AI trick: {trick['title_en']} ({style})")
     return _make(prompt, trick["facts"], trick["title_en"], 5, 9)
+
+
+def generate_news_script(story):
+    style, instr = _language()
+    hook_rule, cta_rule, _ = _rules("news")
+    en = C.LANGUAGE_MODE == "english_only"
+    def prompt(fb):
+        return NEWS_PROMPT.format(channel=C.SERIES_NAME, title=story["title_en"] if en else story["title"],
+                                  title_en=story["title_en"], facts=story["facts"], feedback=fb, winners=_winners(),
+                                  language_style=style, language_instruction=instr, hook_rule=hook_rule,
+                                  cta_rule=cta_rule, schema=SCHEMA)
+    log(f"Writing AI news: {story['title_en']} ({style})")
+    return _make(prompt, story["facts"], story["title_en"], 4, 7)

@@ -47,4 +47,6 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           YT_PRIVACY: ${{ vars.YT_PRIVACY || 'public' }}
+          FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
+          POST_TIMES: ${{ vars.POST_TIMES || '08:00,19:00' }}
           PYTHONPATH: cartoon-bot/src

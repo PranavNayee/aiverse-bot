@@ -224,6 +224,50 @@ TRICKS = [
  ("Ek prompt, teen options", "Ask for options, not one answer", "Asking for three different options (for example three titles or three plans) and then choosing or combining them usually beats accepting the first answer.", ["options", "brainstorm"]),
 ]
 
+TRICKS += [
+ ("Photo se maths sawaal solve karo", "Solve a maths question from a photo", "Apps such as Google Lens can read a photographed maths problem and show solution steps; use them to understand the method, not to copy homework.", ["Google Lens", "maths"]),
+ ("Gaane ka naam bhool gaye? Gungunao", "Find a song by humming", "Google's search app has a hum-to-search feature: you hum or whistle a tune for about 10 to 15 seconds and it suggests matching songs.", ["hum to search", "Google"]),
+ ("Kisi bhi plant ya kide ka naam jaano", "Identify plants and insects with your camera", "Google Lens can identify many plants, animals and insects from a photo and show search results about them.", ["Google Lens", "identify"]),
+ ("Lambi PDF ka summary 1 minute mein", "Summarise a long PDF", "Many AI chatbots let you upload a PDF and ask for a summary or key points; always check important details in the original document.", ["PDF", "summary"]),
+ ("AI se diet plan - sahi tareeke se", "Make a meal plan with AI the safe way", "A chatbot can suggest a sample weekly meal plan from your preferences and budget, but medical or diet decisions should be checked with a doctor or dietitian.", ["meal plan", "health"]),
+ ("Interview ke liye apna intro likhwao", "Write your interview introduction", "You can give a chatbot your education, skills and the job you want and ask for a 30-second 'tell me about yourself' answer, then practise saying it in your own words.", ["interview", "introduction"]),
+ ("Kisi bhi topic ka mind map", "Make a mind map of any topic", "Asking a chatbot to break a topic into main branches and sub-points gives a text mind map you can redraw or turn into notes.", ["mind map", "study"]),
+ ("Galat English? AI se theek karwao", "Fix your English with AI", "You can paste a sentence or message into a chatbot and ask it to correct grammar and explain each mistake, which helps you learn instead of just copying.", ["grammar", "English"]),
+ ("Ek prompt, kai bhasha", "Translate with the right tone", "Chatbots can translate text and adjust the tone, for example formal Hindi or casual English, if you say the tone you want in the prompt.", ["translate", "tone"]),
+ ("YouTube video ko notes mein badlo", "Turn a lecture into notes", "With a lecture transcript, a chatbot can create headings, bullet notes and five quiz questions for revision.", ["notes", "lecture"]),
+ ("AI ko apna teacher banao: Socratic method", "Learn with the Socratic method", "Asking a chatbot not to give the answer directly but to guide you with questions step by step helps you understand a concept more deeply.", ["Socratic", "learning"]),
+ ("Code ko simple Hindi mein samjho", "Get code explained line by line", "You can paste a short piece of code into a chatbot and ask it to explain what each line does in simple language.", ["code", "explain"]),
+ ("Bina coding ke website idea test karo", "Plan a simple website with AI", "A chatbot can suggest the pages, sections and text for a simple website from a short description of your idea, which you can then build with a website builder.", ["website", "planning"]),
+ ("Instagram caption 10 second mein", "Write captions with AI", "You can describe your photo and audience and ask a chatbot for a few short caption options, then pick and edit the one that sounds like you.", ["caption", "social media"]),
+ ("Exam se pehle last-minute revision", "Last-minute revision with AI", "Asking a chatbot for the ten most important points of a chapter from your own notes gives a quick revision list; check it against your textbook.", ["revision", "exam"]),
+ ("Debate ke liye dono side ke points", "Get both sides of an argument", "Asking a chatbot for the strongest points for and against a topic helps you prepare for debates and understand different views.", ["debate", "arguments"]),
+ ("Budget banao AI ke saath", "Plan a monthly budget with AI", "You can give a chatbot your income and expenses and ask it to organise them into a simple monthly budget table; never share bank passwords or account numbers.", ["budget", "money"]),
+ ("Kisi bhi cheez ko step-by-step seekho", "Get a learning roadmap", "Asking a chatbot for a week-by-week learning roadmap for a skill, with free resources to search for, gives a clear study plan.", ["roadmap", "skills"]),
+ ("Photo mein se text Hindi mein translate", "Translate text in a photo", "Google Lens and the Google Translate app can translate text inside a photo, such as a sign or menu, into another language.", ["translate", "photo"]),
+ ("AI image prompt ka formula", "The formula for AI image prompts", "Image generators usually give better results when the prompt describes the subject, setting, style, lighting and camera angle clearly.", ["image prompt", "style"]),
+ ("AI se presentation ke speaker notes", "Speaker notes with AI", "You can paste your slide points into a chatbot and ask for short speaker notes for each slide, then practise them aloud.", ["presentation", "speaking"]),
+ ("Lamba email? 3 line mein jawab", "Reply to long emails quickly", "A chatbot can summarise a long email and draft a short polite reply from the points you want to make; read it before sending.", ["email", "summary"]),
+ ("Apni writing ka tone badlo", "Change the tone of your writing", "Asking a chatbot to rewrite a paragraph as more formal, friendly or confident shows you different ways to say the same thing.", ["tone", "rewrite"]),
+ ("AI se coding interview practice", "Practise coding interviews with AI", "A chatbot can give you a coding problem at your level, wait for your solution and then review it and suggest improvements.", ["coding", "interview"]),
+ ("Bachchon ko AI ke saath padhao", "Explain lessons to kids with AI", "Parents and teachers can ask a chatbot for a simple story or example to explain a school topic to a child, then check it for accuracy.", ["kids", "teaching"]),
+ ("Apna doubt photo kheench ke pucho", "Ask questions about a photo", "Many AI assistants can look at an image you upload and answer questions about it, such as explaining a diagram.", ["image", "multimodal"]),
+ ("Ek prompt se poora week plan", "Plan your week with AI", "You can list your tasks and deadlines and ask a chatbot to arrange them into a realistic weekly plan with breaks.", ["planning", "productivity"]),
+ ("AI se apna resume ATS-friendly banao", "Make your resume clearer for job portals", "A chatbot can suggest clear headings and keywords from a job description for your resume, but you should only include skills you really have.", ["resume", "keywords"]),
+ ("Kisi article ko 5 saal ke bachche jaise samjho", "Simplify a hard article", "Pasting a difficult paragraph into a chatbot and asking for a simpler explanation with an example helps you understand tough reading.", ["simplify", "reading"]),
+ ("Prompt ke end mein 'confidence' pucho", "Ask how confident the AI is", "Asking a chatbot which parts of its answer it is unsure about can highlight what you should double-check.", ["confidence", "verify"]),
+ ("AI se apne project ka naam aur logo idea", "Name ideas for your project", "A chatbot can brainstorm names, taglines and logo ideas for a project when you describe what it does and who it is for.", ["branding", "ideas"]),
+ ("Voice note ko text mein badlo", "Turn speech into text", "Phone voice typing and many apps can convert speech to text, which is handy for writing notes and messages quickly.", ["voice typing", "notes"]),
+ ("Screenshot se table Excel mein", "Get a table from a screenshot", "Some AI assistants can read a table in an image and turn it into text or rows you can paste into a spreadsheet; check the numbers.", ["table", "spreadsheet"]),
+ ("AI se story ya kavita likhwao", "Write a story or poem with AI", "You can give a chatbot a theme, characters and length and ask for a short story or poem, then edit it to add your own voice.", ["creative writing", "story"]),
+ ("Sahi sawaal kaise puchein: 5W trick", "Ask better questions with 5W", "Adding who, what, when, where and why details to your question gives a chatbot the context it needs for a better answer.", ["5W", "context"]),
+ ("AI ke saath group study", "Group study quiz with AI", "A chatbot can generate a quiz on a chapter that friends can answer together, which makes revision more active.", ["group study", "quiz"]),
+ ("Lamba message chhota karo", "Shorten long messages", "Asking a chatbot to shorten a message to a fixed number of words while keeping the key points makes it clearer.", ["shorten", "clarity"]),
+ ("AI se naye shabd seekho", "Build vocabulary with AI", "You can ask a chatbot for five useful words on a topic with meanings and example sentences, then use them in your own sentences.", ["vocabulary", "English"]),
+ ("Apni galti dhoondho: AI as proofreader", "Use AI as a proofreader", "A chatbot can point out spelling, grammar and clarity issues in your writing if you ask it to list the changes rather than rewrite everything.", ["proofread", "writing"]),
+ ("Free mein AI seekhne ke tareeke", "Learn AI for free", "Many universities and companies publish free beginner courses and tutorials on AI and machine learning online; start with the basics and practise small projects.", ["free learning", "courses"]),
+]
+
+
 def get_next_trick(history):
     last = _last(history, "trick", "trick_idx")
     idx = (last + 1 if last is not None else len([h for h in history if h.get("type") == "trick"])) % len(TRICKS)

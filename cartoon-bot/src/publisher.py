@@ -6,7 +6,7 @@ Guarantees:
   * history is written only after a SUCCESSFUL post, so a failed/skipped day never burns a lesson number
 """
 import re, time, uuid, traceback
-import config as C, storage, instagram, notify, slots, youtube
+import config as C, storage, instagram, notify, slots, youtube, facebook
 from util import log
 
 MAX_ATTEMPTS = 3
@@ -34,6 +34,7 @@ def _record(p, media_id):
         "date": p.get("slot"), "slot": p.get("slot"), "type": p.get("type", "lesson"),
         "lesson_num": p.get("lesson_num"), "fact_idx": p.get("fact_idx"), "trick_idx": p.get("trick_idx"),
         "level": p.get("level"), "keyword": p.get("keyword"), "freebie": p.get("freebie", ""),
+        "news_url": p.get("news_url"),
         "topic": p.get("topic", ""), "duration": p.get("duration"), "fact_check": p.get("fact_check"),
         "media_id": media_id, "posted_ts": int(time.time()), "hook": p.get("hook", ""),
         "youtube_id": p.get("youtube_id"),
@@ -94,6 +95,13 @@ def publish(p, force=False):
         except Exception as e:
             log("YouTube cross-post failed:", e)
             yt = f"\n⚠️ YouTube upload failed: {str(e)[:300]}"
+    if facebook.enabled():
+        try:
+            p["fb_id"] = facebook.post_reel(p["video_url"], p["caption"])
+            yt += "\n📘 Facebook Reel posted"
+        except Exception as e:
+            log("Facebook cross-post failed:", e)
+            yt += f"\n⚠️ Facebook failed: {str(e)[:200]}"
     _record(p, media_id)
     storage.delete("pending.json")
     notify.text(f"✅ Posted to Instagram ({slots.fmt(time.time())}): {p.get('topic', '')}{yt}")

@@ -27,9 +27,11 @@ REVIEW_MODE  = (env("REVIEW_MODE", "approve") or "approve").strip().lower()
 REVIEW_HOURS = float(env("REVIEW_HOURS", "2"))   # auto_unless_skip: minimum time you get to /skip after the preview
 
 # ---------------- Schedule ----------------
-POST_TIME          = env("POST_TIME", "08:00") or "08:00"           # daily posting time (24h, in TIMEZONE)
+POST_TIME          = env("POST_TIME", "08:00") or "08:00"           # first daily posting time (24h, in TIMEZONE)
+# all daily posting times: morning + India's evening peak. Set POST_TIMES="08:00" for one post a day.
+POST_TIMES = [t.strip() for t in (env("POST_TIMES", "") or f"{POST_TIME},19:00").split(",") if t.strip()]
 TIMEZONE           = env("TIMEZONE", "Asia/Kolkata") or "Asia/Kolkata"
-LATE_GRACE_MINUTES = int(env("LATE_GRACE_MINUTES", "600") or 600)   # a reel made <=10 h after the slot still posts that day
+LATE_GRACE_MINUTES = int(env("LATE_GRACE_MINUTES", "180") or 180)   # a late reel still posts up to 3 h after its slot
 MAX_WAIT_MINUTES   = int(env("MAX_WAIT_MINUTES", "330") or 330)     # a job may sleep this long to hit the slot exactly
 
 # ---------------- 2D animation ----------------
@@ -41,9 +43,13 @@ MUSIC_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "music")
 # lesson = next course lesson, trick = "AI Trick of the Day" (practical, most shareable), fun_fact = AI fun fact
 CONTENT_PLAN = dict(x.split(":") for x in (env("CONTENT_PLAN", "") or
                     "mon:lesson,tue:trick,wed:lesson,thu:trick,fri:lesson,sat:trick,sun:fun_fact").split(","))
+# evening slot: practical + trending content (news falls back to a trick when there is no good story)
+CONTENT_PLAN_PM = dict(x.split(":") for x in (env("CONTENT_PLAN_PM", "") or
+                    "mon:trick,tue:news,wed:trick,thu:news,fri:trick,sat:news,sun:trick").split(","))
 
 # ---------------- The series & channel (edit freely) ----------------
-SERIES_NAME = env("SERIES_NAME", "AIVerse") or "AIVerse"   # MUST match your Instagram name
+SERIES_NAME = env("SERIES_NAME", "AIVerse") or "AIVerse"
+LINKS_URL = env("LINKS_URL", "https://pranavnayee.github.io/aiverse-bot/links.html") or ""   # free link-in-bio page   # MUST match your Instagram name
 BRAND_TAG = "#" + re.sub(r"[^a-z0-9]", "", SERIES_NAME.lower())
 
 # Content language: "hinglish" (default), "english_only", "hindi_only"
