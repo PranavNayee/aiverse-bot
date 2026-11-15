@@ -479,9 +479,9 @@ def s_chat(frame, d, v, t, dur, ctx):
     d.text((170, 392), "AI Chat", font=font(40), fill=rgba(TEXT, p), anchor="lm")
     d.line([(110, 440), (W - 110, 440)], fill=rgba(TEXT, .12 * p), width=2)
     fu, fa = font(44), font(42, False)
-    t_user = (0.35, max(1.2, dur * 0.32))                      # typing window for the prompt
-    t_think = t_user[0] + t_user[1] + 0.15
-    t_ai = (t_think + 0.6, max(1.2, dur - (t_think + 0.6) - 0.6))
+    t_user = (0.1, max(0.6, dur * 0.28))                       # timings scale with the scene, so the AI's
+    t_think = t_user[0] + t_user[1] + 0.05                     # answer is fully on screen well before the cut
+    t_ai = (t_think + min(0.4, dur * 0.1), max(0.6, dur * 0.35))
     # user bubble (right)
     k = prog(t, *t_user)
     if k > 0:
