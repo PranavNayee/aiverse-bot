@@ -58,7 +58,9 @@ jobs:
         timeout-minutes: 15
         run: |
           start=$(date +%s)
-          pip install -q manim 2>&1 | tail -3 || true
+          pip install -q --only-binary manimpango,pycairo,skia-pathops manim 2>&1 | tail -5 || true
+          pip download -q --only-binary :all: --no-deps manimpango -d /tmp/mp 2>&1 | tail -2 || true
+          ls /tmp/mp 2>/dev/null || echo "no manimpango wheel for this platform"
           echo "pip install took $(( $(date +%s) - start ))s"
           python -c "import manim; print('manim', manim.__version__)"
           cd test_work 2>/dev/null || mkdir -p test_work && cd test_work
