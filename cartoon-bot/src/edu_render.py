@@ -146,7 +146,11 @@ def ctext(d, x, y, text, fnt, fill):
     d.text((x, y), text, font=fnt, fill=fill, anchor="mm")
 
 def card(d, box, radius=36, fill=(255, 255, 255, 22), outline=None, width=3):
-    d.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width if outline else 0)
+    x0, y0, x1, y1 = box
+    if x1 - x0 < 2 or y1 - y0 < 2:                       # popping in from zero size: nothing to draw yet
+        return
+    radius = max(0, min(radius, (x1 - x0) / 2 - 0.5, (y1 - y0) / 2 - 0.5))
+    d.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=min(width, int(radius)) if outline else 0)
 
 def glow_sprite(size, color, strength=0.9):
     s = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -697,7 +701,11 @@ def draw_content(spec, t, dur, ctx):
     frame = base_gradient().copy()
     chrome(frame, ctx, t)
     d = ImageDraw.Draw(frame, "RGBA")
-    DRAWERS[spec["kind"]](frame, d, spec["visual"], t, dur, ctx)
+    try:
+        DRAWERS[spec["kind"]](frame, d, spec["visual"], t, dur, ctx)
+    except Exception as e:                               # one bad frame must never kill the whole reel
+        if not getattr(draw_content, "_warned", False):
+            print(f"[render] {spec['kind']} frame skipped: {e}", flush=True); draw_content._warned = True
     return frame
 
 

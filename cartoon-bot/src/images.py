@@ -69,9 +69,13 @@ def _huggingface(prompt, seed):
 
 def _pollinations(prompt, seed):
     q = urllib.parse.quote(prompt[:600])
-    r = requests.get(f"https://image.pollinations.ai/prompt/{q}", timeout=120,
-                     params={"width": 1024, "height": 1280, "nologo": "true", "seed": seed, "model": "flux"})
-    if r.status_code != 200 or not r.headers.get("content-type", "").startswith("image"):
+    for attempt in range(4):                            # free tier allows ~1 request at a time: wait and retry
+        r = requests.get(f"https://image.pollinations.ai/prompt/{q}", timeout=120,
+                         params={"width": 1024, "height": 1280, "nologo": "true", "seed": seed, "model": "flux"})
+        if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
+            break
+        if r.status_code in (402, 429, 500, 502, 503) and attempt < 3:
+            time.sleep(20 * (attempt + 1)); continue
         raise RuntimeError(f"Pollinations {r.status_code}")
     im = Image.open(io.BytesIO(r.content)).convert("RGB")
     w, h = im.size

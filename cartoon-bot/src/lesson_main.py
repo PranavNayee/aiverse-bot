@@ -101,12 +101,15 @@ def generate_lesson_video(lesson, lesson_num, script):
     label = (f"Lesson {lesson_num}/{syllabus.TOTAL}" if lesson_num else
              {"trick": "AI Trick", "news": "AI News", "alert": "Saavdhan", "photo": "AI Photo"}.get(lvl, "Fun Fact"))
     import images
+    good = None
     for i, sc in enumerate(script["scenes"]):           # make the real AI images for 'image' scenes (free)
         if sc["kind"] == "image":
             try:
-                sc["visual"]["path"] = images.generate(sc["visual"]["prompt"], f"/tmp/aiverse_img_{i}.jpg", seed=7 + i)
+                sc["visual"]["path"] = good = images.generate(sc["visual"]["prompt"], f"/tmp/aiverse_img_{i}.jpg", seed=7 + i)
             except Exception as e:
-                log("AI image skipped:", e)
+                log("AI image skipped (reusing the previous one):", e)
+                if good:
+                    sc["visual"]["path"] = good
     log(f"🎬 Rendering {label}: {lesson['title']}")
     shutil.rmtree("work", ignore_errors=True)
     os.makedirs("work")
