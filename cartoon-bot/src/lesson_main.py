@@ -40,7 +40,7 @@ TXT = {
 BASE_TAGS = [C.BRAND_TAG, "#learnai", "#artificialintelligence"] + (["#aiexplained"] if EN else ["#aiinhindi"])
 
 
-FREEBIE = {"NEWS": "a 3-line summary" if EN else "3-line summary", "PROMPT": "the exact prompt" if EN else "exact prompt", "NOTES": "quick revision notes" if EN else "revision notes",
+FREEBIE = {"SAFE": "the exact steps" if EN else "exact steps", "NEWS": "a 3-line summary" if EN else "3-line summary", "PROMPT": "the exact prompt" if EN else "exact prompt", "NOTES": "quick revision notes" if EN else "revision notes",
            "AI": "one more surprising fact" if EN else "ek aur surprising fact"}
 
 
@@ -69,6 +69,19 @@ def build_fun_fact_caption(script, topic):
                     script.get("hashtags", []) + ["#aifacts", "#didyouknow"], kw="AI")
 
 
+def build_short_caption(script, tag, kw, tags):
+    """Viral-style caption: hook line, 1-2 value lines, comment keyword, share line, 5-7 hashtags."""
+    head = script.get("headline") or tag
+    summary = (script.get("caption_summary") or "").strip()
+    share = ("📤 Share this with your family group - it can save someone!" if EN else
+             "📤 Family group mein share karo - kisi ki help ho jayegi!") if kw == "SAFE" else TXT["save"]
+    ask = TXT["ask"].format(kw=kw, what=FREEBIE.get(kw, ""))
+    all_tags = list(dict.fromkeys([t for t in (script.get("hashtags") or []) if t][:3] + tags + [C.BRAND_TAG]))[:7]
+    cap = "\n".join([head, "", summary, "", ask, share, TXT["follow"].format(h=C.SERIES_NAME.lower()), "", " ".join(all_tags)])
+    log(f"Caption: {len(cap)} chars")
+    return cap[:2150]
+
+
 def build_news_caption(script, title):
     headline = script.get("headline") or f"📰 {title}"
     return _caption(headline, f"📰 AI News · {title}", script.get("caption_summary", ""), script.get("key_terms", []),
@@ -85,8 +98,15 @@ def build_trick_caption(script, title):
 def generate_lesson_video(lesson, lesson_num, script):
     """Voice -> one soundtrack -> one single-pass 2D animated render. Returns (video, seconds, cover jpg)."""
     lvl = lesson.get("level")
-    label = (f"Lesson {lesson_num}/{syllabus.TOTAL}" if lesson_num else "AI Trick" if lvl == "trick" else
-             "AI News" if lvl == "news" else "Fun Fact")
+    label = (f"Lesson {lesson_num}/{syllabus.TOTAL}" if lesson_num else
+             {"trick": "AI Trick", "news": "AI News", "alert": "Saavdhan", "photo": "AI Photo"}.get(lvl, "Fun Fact"))
+    import images
+    for i, sc in enumerate(script["scenes"]):           # make the real AI images for 'image' scenes (free)
+        if sc["kind"] == "image":
+            try:
+                sc["visual"]["path"] = images.generate(sc["visual"]["prompt"], f"/tmp/aiverse_img_{i}.jpg", seed=7 + i)
+            except Exception as e:
+                log("AI image skipped:", e)
     log(f"🎬 Rendering {label}: {lesson['title']}")
     shutil.rmtree("work", ignore_errors=True)
     os.makedirs("work")
@@ -124,7 +144,7 @@ DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 def content_kind(slot):
     want = os.environ.get("CONTENT_TYPE", "auto").strip().lower()      # auto | lesson | trick | news | fun_fact
-    if want in ("lesson", "trick", "news", "fun_fact"):
+    if want in ("lesson", "trick", "news", "fun_fact", "alert", "photo"):
         return want
     plan = C.CONTENT_PLAN if slots.index(slot) == 0 else C.CONTENT_PLAN_PM
     return plan.get(DAYS[slot.weekday()], "lesson").strip()
@@ -133,7 +153,24 @@ def content_kind(slot):
 def build_content(history, slot):
     """Picks the slot's content from the weekly plan (C.CONTENT_PLAN) for the POSTING day."""
     kind = content_kind(slot)
-    base = dict(lesson_num=None, fact_idx=None, trick_idx=None, news_url=None)
+    base = dict(lesson_num=None, fact_idx=None, trick_idx=None, news_url=None, alert_idx=None)
+    if kind == "alert":
+        log("⚠️ SAAVDHAN alert")
+        al = syllabus.get_next_alert(history)
+        script = lesson_script.generate_alert_script(al)
+        title = al["title_en"] if EN else al["title"]
+        lesson = {"title": title, "title_en": al["title_en"], "level": "alert"}
+        return dict(base, script=script, lesson=lesson, alert_idx=al["idx"], type="alert", level="alert",
+                    keyword="SAFE", topic=title, caption=build_short_caption(script, "⚠️ SAAVDHAN", "SAFE",
+                    ["#cybersafety", "#whatsapptips", "#digitalsafety"]))
+    if kind == "photo":
+        log("🖼️ AI PHOTO PROMPT reel")
+        script = lesson_script.generate_photo_script(syllabus.seasonal_themes(slot.date()))
+        title = script.get("headline") or "AI Photo Prompt"
+        lesson = {"title": title, "title_en": title, "level": "photo"}
+        return dict(base, script=script, lesson=lesson, type="photo", level="photo", keyword="PROMPT", topic=title,
+                    caption=build_short_caption(script, "🖼️ AI Photo Prompt", "PROMPT",
+                                                ["#aiphoto", "#chatgptprompt", "#geminiprompt", "#aiphotoediting"]))
     if kind == "news":
         import news
         story = None
@@ -243,7 +280,20 @@ def run_lesson_generation():
     log("☁️ Uploading to Supabase...")
     stamp = slots.now().strftime("%H%M%S")
     url = storage.upload_file(final_video, f"lessons/{key}-{stamp}.mp4")
-    cover_url = None
+    cover_url = thumb_url = None
+    try:                                                 # designed cover (reel) + thumbnail (YouTube)
+        import covers
+        sc0 = c["script"]["scenes"][0]
+        img = next((s["visual"].get("path") for s in c["script"]["scenes"] if s["kind"] == "image" and s["visual"].get("path")), None)
+        tag = {"alert": "⚠️ SAAVDHAN".replace("⚠️ ", ""), "photo": "AI PHOTO PROMPT", "news": "AI NEWS",
+               "trick": "AI TRICK"}.get(c["type"])
+        cover, thumb = covers.make(c["script"].get("headline") or sc0["visual"].get("text") or c["topic"],
+                                   "work/cover_designed.jpg", "work/thumb.jpg",
+                                   accent=edu_render.LEVEL_COLOR.get(c["level"], edu_render.LEVEL_COLOR["basics"]),
+                                   image_path=img, emoji=sc0["visual"].get("emoji"), tag=tag)
+        thumb_url = storage.upload_file(thumb, f"covers/{key}-{stamp}-yt.jpg", "image/jpeg")
+    except Exception as e:
+        log("Designed cover failed (using a video frame):", e)
     try:
         cover_url = storage.upload_file(cover, f"covers/{key}-{stamp}.jpg", "image/jpeg")
     except Exception as e:
@@ -259,7 +309,7 @@ def run_lesson_generation():
         "slot": key, "post_at": int(post_at), "video_url": url, "cover_url": cover_url, "caption": c["caption"],
         "topic": c["topic"], "type": c["type"], "lesson_num": c["lesson_num"], "fact_idx": c["fact_idx"],
         "trick_idx": c["trick_idx"], "keyword": c["keyword"], "freebie": c["script"].get("freebie", ""),
-        "news_url": c.get("news_url"),
+        "news_url": c.get("news_url"), "alert_idx": c.get("alert_idx"), "thumb_url": thumb_url,
         "level": c["level"], "duration": round(duration, 1), "fact_check": c["script"].get("fact_check", "pass"),
         "hook": c["script"]["scenes"][0]["narration"], "headline": c["script"].get("headline", ""),
         "created_ts": int(time.time()), "attempts": 0, "status": "queued",

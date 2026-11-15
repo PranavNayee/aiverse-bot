@@ -27,9 +27,10 @@ assert syllabus.get_fun_fact([])["idx"] == 0
 assert syllabus.get_next_trick([{"type": "trick", "trick_idx": 2}])["idx"] == 3
 import lesson_main
 kinds = [lesson_main.content_kind(at(2026, 11, d, 8, 0)) for d in range(9, 16)]     # Mon 9 Nov .. Sun 15 Nov
-assert kinds == ["lesson", "trick", "lesson", "trick", "lesson", "trick", "fun_fact"], kinds
+assert kinds == ["lesson", "photo", "alert", "photo", "lesson", "photo", "alert"], kinds
 pm = [lesson_main.content_kind(at(2026, 11, d, 19, 0)) for d in range(9, 16)]
-assert pm == ["trick", "news", "trick", "news", "trick", "news", "trick"], pm
+assert pm == ["photo", "news", "trick", "alert", "photo", "news", "photo"], pm
+assert syllabus.get_next_alert([{"type": "alert", "alert_idx": 3}])["idx"] == 4
 print("syllabus + weekly plan ok")
 
 # ---------------------------------------------------------------- render
@@ -66,4 +67,27 @@ assert "width=1080" in probe and "height=1920" in probe and "aac" in probe, prob
 for i in range(len(scenes)):                                   # one frame per scene for eyeballing
     sh("ffmpeg", "-y", "-ss", f"{scenes[i]['start'] + 1.2:.2f}", "-i", out, "-frames:v", "1", f"{W}/frame_{i}.jpg")
 print(f"render ok: {total:.1f}s, {os.path.getsize(out)/1e6:.2f} MB -> {out}")
+# ---------------------------------------------------------------- AI photo scene + designed covers (no network)
+from PIL import Image as _I
+import covers
+_I.new("RGB", (800, 1000), (180, 120, 90)).save(f"{W}/fake_ai.jpg")
+photo = lesson_script.validate({"scenes": [
+    {"kind": "image", "narration": "Ye photo AI ne banayi hai, aap bhi bana sakte ho", "visual": {"prompt": "cinematic portrait of a person in festive lights", "caption": "Wedding look"}},
+    {"kind": "chat", "narration": "Bas apni photo upload karo aur ye prompt likho", "visual": {"user": "Upload photo + make it a wedding portrait", "ai": "Here is your cinematic wedding portrait!"}},
+    {"kind": "flow", "narration": "ChatGPT ya Gemini kholo, photo do, prompt paste karo", "visual": {"heading": "3 steps", "steps": [{"label": "Open app", "emoji": "📱"}, {"label": "Upload photo", "emoji": "🖼️"}, {"label": "Paste prompt", "emoji": "✨"}]}},
+    {"kind": "takeaway", "narration": "Ek prompt se professional photoshoot jaisa result milta hai", "visual": {"text": "One prompt, pro photo", "terms": ["prompt", "photo", "AI"]}},
+    {"kind": "cta", "narration": "Comment PROMPT karo aur exact prompt paao, follow karo AIVerse", "visual": {"text": "Comment PROMPT"}}],
+    "headline": "🖼️ Wedding season AI photo prompt", "freebie": "Use my photo and create..."}, 4, 10)
+photo["scenes"][0]["visual"]["path"] = f"{W}/fake_ai.jpg"
+t2, sc2, cl2 = 0.0, [], []
+for i, scx in enumerate(photo["scenes"]):
+    a = f"{W}/b{i}.wav"; sh("ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=300:duration=2", a)
+    sc2.append({"kind": scx["kind"], "visual": scx["visual"], "start": t2, "dur": 2.2}); cl2.append(a); t2 += 2.2
+lv2 = soundtrack.build(cl2, [x["start"] for x in sc2], t2, f"{W}/mix2.wav", edu_render.FPS)
+edu_render.render_video(sc2, f"{W}/mix2.wav", lv2, f"{W}/photo.mp4", "AI Photo", "photo", words=[(0.1, 0.6, "Ye"), (0.6, 1.2, "photo")])
+sh("ffmpeg", "-y", "-ss", "0.5", "-i", f"{W}/photo.mp4", "-frames:v", "1", f"{W}/photo_frame.jpg")
+covers.make(photo["headline"], f"{W}/cover_a.jpg", f"{W}/thumb_a.jpg", image_path=f"{W}/fake_ai.jpg", tag="AI PHOTO PROMPT")
+covers.make("⚠️ WhatsApp chalane wale saavdhan!", f"{W}/cover_b.jpg", f"{W}/thumb_b.jpg", accent=(250, 204, 21), emoji="⚠️", tag="SAAVDHAN")
+assert _I.open(f"{W}/cover_a.jpg").size == (1080, 1920) and _I.open(f"{W}/thumb_b.jpg").size == (1280, 720)
+print("photo scene + covers ok")
 print("ALL OFFLINE TESTS PASSED")

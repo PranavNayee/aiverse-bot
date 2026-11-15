@@ -273,3 +273,58 @@ def get_next_trick(history):
     idx = (last + 1 if last is not None else len([h for h in history if h.get("type") == "trick"])) % len(TRICKS)
     t, t_en, facts, kw = TRICKS[idx]
     return {"title": t, "title_en": t_en, "facts": facts, "keywords": kw, "idx": idx}
+
+
+# ---------------------------------------------------------------- "Saavdhan / secret setting" alerts (everyday apps)
+# (Hinglish title, English title, CORE FACTS - general and stable; never invent menu paths, numbers or scares)
+ALERTS = [
+ ("WhatsApp chalane wale ye setting abhi on karo", "Turn on WhatsApp two-step verification", "WhatsApp has a two-step verification feature that adds a 6-digit PIN, so someone who gets your SIM or OTP still cannot easily register your WhatsApp. It is found in WhatsApp's account settings.", ["WhatsApp", "two-step verification"]),
+ ("OTP kabhi kisi ko mat batao - bank wale ko bhi nahi", "Never share your OTP", "Banks and genuine companies do not ask for your OTP on calls or messages. Anyone asking for an OTP should be treated as a scam.", ["OTP", "scam"]),
+ ("Ye link khola toh WhatsApp hack ho sakta hai", "Suspicious links can steal your account", "Scam messages often contain links or ask for a code sent to you; opening unknown links or sharing codes can lead to account takeover. Do not share verification codes with anyone.", ["phishing", "links"]),
+ ("Kisi bhi app ko ye permission mat do", "Check app permissions", "Android and iPhone let you see and remove app permissions such as camera, microphone, location and contacts in the phone's settings. Apps that do not need a permission should not have it.", ["permissions", "privacy"]),
+ ("Google aapki location save kar raha hai? Check karo", "Check your Google location history", "Your Google Account has activity controls where you can see and turn off saved location history (Timeline) and other activity, and set auto-delete.", ["Google", "location"]),
+ ("Instagram pe ye setting band karo abhi", "Make your Instagram safer", "Instagram lets you turn on two-factor authentication, make your account private, and control who can message, tag or mention you, in its settings.", ["Instagram", "privacy"]),
+ ("Facebook / Instagram pe aapki activity kaun dekh raha hai", "See where your Meta account is logged in", "Meta's Accounts Centre shows the devices where your Facebook and Instagram accounts are logged in, and lets you log out of devices you do not recognise.", ["logged in devices", "Meta"]),
+ ("Phone chori ho jaye toh ye pehle se karo", "Prepare for a lost phone", "Android's Find My Device and Apple's Find My can locate, lock or erase a lost phone if they were turned on beforehand. In India, the government's Sanchar Saathi portal lets you report and block a lost or stolen phone.", ["Find My Device", "Sanchar Saathi"]),
+ ("Aapke naam pe kitne SIM chal rahe hain? 1 minute mein check karo", "Check SIM cards in your name", "The Sanchar Saathi portal by the Department of Telecommunications lets you check the mobile connections registered in your name and report ones you do not recognise.", ["Sanchar Saathi", "SIM"]),
+ ("UPI scam ka sabse common tareeka", "The most common UPI scam", "To RECEIVE money on UPI you never need to enter your UPI PIN. Scammers send 'collect requests' or QR codes and tell you to enter your PIN to receive money - entering the PIN sends money instead.", ["UPI", "PIN"]),
+ ("Voice clone scam se kaise bachein", "Protect yourself from AI voice clone scams", "AI can copy a person's voice from short audio clips. If someone calls urgently asking for money in a family member's voice, hang up and call that person back on their known number, or agree a family code word.", ["voice clone", "AI scam"]),
+ ("Fake photo ya video kaise pehchanein", "Spot AI fake photos and videos", "AI-generated or edited images can look real. Check the source, look for odd details like hands, text or lighting, and use a reverse image search such as Google Lens to see where it appeared before.", ["deepfake", "reverse image search"]),
+ ("Public WiFi pe ye kaam kabhi mat karo", "Careful on public Wi-Fi", "On open public Wi-Fi, avoid entering passwords or doing banking on sites or apps you are unsure about; use your mobile data or trusted networks for sensitive tasks.", ["public WiFi", "banking"]),
+ ("Password ka ye galti 90% log karte hain", "Stop reusing passwords", "Using the same password on many sites is risky because one leak exposes all of them. A password manager and unique passwords plus two-factor authentication are much safer.", ["password", "2FA"]),
+ ("Kya aapka email leak hua hai? Check karo", "Check if your email was in a data breach", "Websites such as Have I Been Pwned let you check whether your email address appeared in known data breaches; if it did, change that password and turn on two-factor authentication.", ["data breach", "email"]),
+ ("Gmail mein ye security check zaroor karo", "Run Google's Security Checkup", "Google's Security Checkup in your Google Account reviews your devices, recent security activity, third-party access and recovery options in one place.", ["Google", "security checkup"]),
+ ("Apps ko Google account ka access diya hai? Hatao", "Remove old apps from your Google account", "In your Google Account you can see which third-party apps have access to your account and remove the ones you no longer use.", ["third-party access", "Google"]),
+ ("Chatbot ko ye 5 cheezein kabhi mat batao", "Never tell a chatbot these things", "Do not share passwords, OTPs, bank or card numbers, ID numbers like Aadhaar, or private photos with AI chatbots; treat chats as not fully private.", ["AI privacy", "chatbot"]),
+ ("WhatsApp group mein bina pooche add hona band karo", "Stop strangers adding you to WhatsApp groups", "WhatsApp's privacy settings let you choose who can add you to groups, such as only your contacts, which reduces spam groups.", ["WhatsApp groups", "privacy"]),
+ ("Unknown number se call? WhatsApp ki ye setting on karo", "Silence unknown callers on WhatsApp", "WhatsApp has a privacy setting to silence calls from unknown numbers, which reduces scam and spam calls; they still appear in your call list.", ["WhatsApp", "unknown callers"]),
+ ("Ye app sab sun raha hai? Mic ka green dot dekho", "The camera and mic indicator", "Recent Android and iPhone versions show a small coloured dot or icon when an app is using the camera or microphone, so you can see when they are active.", ["microphone", "privacy indicator"]),
+ ("Bank ka fake message kaise pehchanein", "Spot fake bank messages", "Fake bank messages often create urgency, contain shortened links or ask you to update KYC via a link. Banks advise using only their official app or website and never sharing OTPs or PINs.", ["KYC scam", "bank"]),
+ ("Free gift / lottery message? 100% scam", "Lottery and free gift messages are scams", "Messages saying you won a lottery, prize or free gift and asking for a fee or your details are a common scam; genuine prizes do not ask you to pay to receive them.", ["lottery scam", "fraud"]),
+ ("Cyber fraud ho gaya toh turant ye number dial karo", "What to do after cyber fraud in India", "In India you can report cyber fraud by calling the helpline 1930 or on the official portal cybercrime.gov.in; reporting quickly improves the chance of stopping the money.", ["1930", "cybercrime"]),
+ ("Screen lock aur fingerprint - ye galti mat karna", "Use a strong screen lock", "A strong PIN or password plus fingerprint or face unlock protects your phone if it is lost; simple patterns or birthdays are easy to guess.", ["screen lock", "security"]),
+]
+
+def get_next_alert(history):
+    last = _last(history, "alert", "alert_idx")
+    idx = (last + 1 if last is not None else len([h for h in history if h.get("type") == "alert"])) % len(ALERTS)
+    t, t_en, facts, kw = ALERTS[idx]
+    return {"title": t, "title_en": t_en, "facts": facts, "keywords": kw, "idx": idx}
+
+
+# ---------------------------------------------------------------- seasonal themes for AI photo-prompt reels (India)
+SEASONS = [  # (month, day_from, day_to, theme)
+ (1, 1, 20, "Makar Sankranti / Lohri / Pongal festive portraits, kites in the sky"), (1, 15, 31, "Republic Day tricolour themed portraits"),
+ (2, 1, 14, "Valentine's week couple and friendship portraits"), (2, 15, 28, "board exam motivation, focused study desk aesthetics"),
+ (3, 1, 31, "Holi colour splash portraits"), (4, 1, 30, "summer vacation travel and beach portraits"),
+ (5, 1, 31, "summer aesthetic, mango season, cricket fever portraits"), (6, 1, 30, "monsoon rain aesthetic portraits"),
+ (7, 1, 31, "monsoon chai and rainy window aesthetics"), (8, 1, 20, "Independence Day tricolour portraits, friendship day"),
+ (8, 20, 31, "Raksha Bandhan sibling portraits"), (9, 1, 30, "Ganesh Chaturthi / Navratri festive outfits"),
+ (10, 1, 31, "Navratri garba and Dussehra festive portraits"), (11, 1, 15, "Diwali lights and diya portraits"),
+ (11, 15, 30, "Indian wedding season looks, winter aesthetic portraits"), (12, 1, 31, "Christmas, winter and New Year party portraits"),
+]
+
+def seasonal_themes(day):
+    out = [t for m, a, b, t in SEASONS if m == day.month and a <= day.day <= b]
+    return out + ["professional LinkedIn headshot", "anime/Ghibli-style portrait", "3D cartoon character of yourself",
+                  "vintage 90s Bollywood poster look", "cinematic travel photo", "superhero movie poster of yourself"]

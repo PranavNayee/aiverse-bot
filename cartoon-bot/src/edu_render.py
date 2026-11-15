@@ -15,7 +15,7 @@ EMOJI_FONTS = [(FONT_DIR + "NotoColorEmoji.ttf", 109), ("/usr/share/fonts/noto/N
 TEXT, MUTED, DARK = (244, 246, 255), (156, 166, 196), (12, 14, 34)
 LEVEL_COLOR = {"basics": (45, 212, 191), "intermediate": (251, 191, 36), "advanced": (244, 114, 182),
                "weekend": (167, 139, 250), "trick": (251, 146, 60),
-               "news": (248, 113, 113)}
+               "news": (248, 113, 113), "alert": (250, 204, 21), "photo": (232, 121, 249)}
 INDIGO, GREEN, RED = (129, 140, 248), (74, 222, 128), (251, 113, 133)
 EN = os.environ.get("LANGUAGE_MODE", "hinglish") == "english_only"
 BRAND = (os.environ.get("SERIES_NAME") or "AIVerse").upper()[:14]
@@ -516,8 +516,49 @@ def s_chat(frame, d, v, t, dur, ctx):
             d.text((145, y_next + 23 + i * 56 + 28), ln, font=fa, fill=TEXT, anchor="lm")
 
 
+@functools.lru_cache(maxsize=8)
+def _image_layers(path):
+    """(blurred full-frame backdrop, rounded foreground photo) for an AI image scene."""
+    src = Image.open(path).convert("RGB")
+    k = max(W / src.width, H / src.height)
+    bg = src.resize((int(src.width * k) + 1, int(src.height * k) + 1), Image.BILINEAR)
+    bg = bg.crop(((bg.width - W) // 2, (bg.height - H) // 2, (bg.width - W) // 2 + W, (bg.height - H) // 2 + H))
+    bg = bg.filter(ImageFilter.GaussianBlur(28))
+    bg = Image.blend(bg, Image.new("RGB", (W, H), (8, 8, 20)), 0.45)
+    bw, bh = 880, 1100
+    k2 = min(bw / src.width, bh / src.height)
+    fg = src.resize((int(src.width * k2), int(src.height * k2)), Image.LANCZOS).convert("RGBA")
+    mask = Image.new("L", fg.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, fg.width, fg.height), 44, fill=255)
+    fg.putalpha(mask)
+    return bg, fg
+
+
+def s_image(frame, d, v, t, dur, ctx):
+    acc = ctx["accent"]
+    path = v.get("path")
+    if not path or not os.path.exists(path):              # image could not be generated: big emoji instead
+        put(frame, emoji_img("🖼️", 320), 540, 700, 1.0)
+        return
+    bg, fg = _image_layers(path)
+    frame.paste(bg, (0, 0))
+    d = ImageDraw.Draw(frame, "RGBA")
+    x, y = (W - fg.width) // 2, 215
+    d.rounded_rectangle((x - 8, y - 8, x + fg.width + 8, y + fg.height + 8), 52, fill=rgba(acc, .9))
+    frame.paste(fg, (x, y), fg)
+    d = ImageDraw.Draw(frame, "RGBA")
+    d.rounded_rectangle((x + 24, y + 24, x + 330, y + 84), 30, fill=(0, 0, 0, 170))
+    d.text((x + 177, y + 54), "✨ AI GENERATED".replace("✨ ", ""), font=font(32), fill=TEXT, anchor="mm")
+    if v.get("caption"):
+        f = font(46)
+        tw = d.textlength(v["caption"], font=f)
+        cy = y + fg.height - 70
+        d.rounded_rectangle((540 - tw / 2 - 34, cy - 40, 540 + tw / 2 + 34, cy + 40), 40, fill=rgba(acc, .95))
+        d.text((540, cy), v["caption"], font=f, fill=DARK, anchor="mm")
+
+
 DRAWERS = {"hook": s_hook, "bullets": s_bullets, "flow": s_flow, "compare": s_compare, "network": s_network,
-           "code": s_code, "stat": s_stat, "formula": s_formula, "takeaway": s_takeaway, "chat": s_chat, "cta": s_cta}
+           "code": s_code, "stat": s_stat, "formula": s_formula, "takeaway": s_takeaway, "chat": s_chat, "image": s_image, "cta": s_cta}
 
 # ---------------------------------------------------------------- captions (speech bubble, word-by-word karaoke)
 BUBBLE = (335, 1318, 950, 1572)            # x0, y0, x1, y1 - left of Instagram's right-side buttons, above its caption
@@ -713,6 +754,8 @@ def render_video(scenes, audio_wav, levels, out_path, label, level="basics", wor
                     cur = chunks[ci]                         # frame 0: show the first words immediately
                 if sc["kind"] == "hook":
                     draw_captions(frame, cur, t, acc, big=True, cy=1050)
+                elif sc["kind"] == "image":
+                    draw_captions(frame, cur, t, acc, big=si == 0, cy=1500)
                 elif sc["kind"] != "cta":
                     draw_captions(frame, cur, t, acc)
                 if f == snap_f:

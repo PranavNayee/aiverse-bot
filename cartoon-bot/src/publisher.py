@@ -34,7 +34,7 @@ def _record(p, media_id):
         "date": p.get("slot"), "slot": p.get("slot"), "type": p.get("type", "lesson"),
         "lesson_num": p.get("lesson_num"), "fact_idx": p.get("fact_idx"), "trick_idx": p.get("trick_idx"),
         "level": p.get("level"), "keyword": p.get("keyword"), "freebie": p.get("freebie", ""),
-        "news_url": p.get("news_url"),
+        "news_url": p.get("news_url"), "alert_idx": p.get("alert_idx"),
         "topic": p.get("topic", ""), "duration": p.get("duration"), "fact_check": p.get("fact_check"),
         "media_id": media_id, "posted_ts": int(time.time()), "hook": p.get("hook", ""),
         "youtube_id": p.get("youtube_id"),
@@ -91,6 +91,14 @@ def publish(p, force=False):
             p["youtube_id"] = youtube.upload(p["video_url"], p["caption"], p.get("headline"), p.get("topic"),
                                              re.findall(r"#\w+", p["caption"]))
             youtube.add_to_playlist(p["youtube_id"], p.get("type"))
+            if p.get("thumb_url"):
+                try:
+                    import requests as rq
+                    with open("/tmp/aiverse_thumb.jpg", "wb") as fh:
+                        fh.write(rq.get(p["thumb_url"], timeout=60).content)
+                    youtube.set_thumbnail(p["youtube_id"], "/tmp/aiverse_thumb.jpg")
+                except Exception as e:
+                    log("Thumbnail step skipped:", e)
             yt = f"\n▶️ YouTube Short: https://youtube.com/shorts/{p['youtube_id']}"
         except Exception as e:
             log("YouTube cross-post failed:", e)

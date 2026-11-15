@@ -42,10 +42,10 @@ MUSIC_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "music")
 # ---------------- Weekly content plan ----------------
 # lesson = next course lesson, trick = "AI Trick of the Day" (practical, most shareable), fun_fact = AI fun fact
 CONTENT_PLAN = dict(x.split(":") for x in (env("CONTENT_PLAN", "") or
-                    "mon:lesson,tue:trick,wed:lesson,thu:trick,fri:lesson,sat:trick,sun:fun_fact").split(","))
+                    "mon:lesson,tue:photo,wed:alert,thu:photo,fri:lesson,sat:photo,sun:alert").split(","))
 # evening slot: practical + trending content (news falls back to a trick when there is no good story)
 CONTENT_PLAN_PM = dict(x.split(":") for x in (env("CONTENT_PLAN_PM", "") or
-                    "mon:trick,tue:news,wed:trick,thu:news,fri:trick,sat:news,sun:trick").split(","))
+                    "mon:photo,tue:news,wed:trick,thu:alert,fri:photo,sat:news,sun:photo").split(","))
 
 # ---------------- The series & channel (edit freely) ----------------
 SERIES_NAME = env("SERIES_NAME", "AIVerse") or "AIVerse"

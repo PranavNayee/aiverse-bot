@@ -15,6 +15,8 @@ PLAYLISTS = {"lesson": ("AI Course in Hindi - Lesson by Lesson", "AI aur Machine
              "trick": ("AI Tricks & ChatGPT Tips", "Roz ek AI trick jo aapka time bachaye - ChatGPT prompts, Google Lens, AI tools."),
              "fun_fact": ("AI Fun Facts", "AI ki interesting duniya - har Sunday ek naya fact."),
              "weekly": ("This Week in AI (Hinglish)", "Har hafte ke saare AI lessons, tricks aur news ek video mein."),
+             "alert": ("Saavdhan - Phone & App Safety Tips", "WhatsApp, Instagram, UPI aur phone ki safety settings - simple Hinglish mein."),
+             "photo": ("AI Photo Prompts (ChatGPT & Gemini)", "Trending AI photo prompts - apni photo se banao!"),
              "news": ("AI News in Hindi", "AI ki latest news - naye features aur tools, simple Hinglish mein.")}
 
 

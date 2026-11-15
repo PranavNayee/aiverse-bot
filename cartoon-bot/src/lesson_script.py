@@ -16,6 +16,7 @@ SCHEMA = """Scene kinds and their "visual" fields (keep texts SHORT, they appear
 - formula:  {"heading": "max 4 words", "lines": ["max 28 chars per line, max 2 lines"], "note": "max 8 words"}
 - takeaway: {"text": "one-line summary, max 14 words", "terms": ["max 3 words", exactly 3 key terms]}
 - chat:     {"user": "what the person types to the AI, max 90 chars", "ai": "the AI's short reply, max 140 chars"}  (a ChatGPT-style chat demo that SHOWS a result)
+- image:    {"prompt": "detailed English prompt for an AI image generator (a generic person, NO real or famous people, no text in image)", "caption": "max 5 words shown on the image"}
 - cta:      {"text": "teaser for the next video, max 10 words"}"""
 
 HOOK_RULE = """HOOK (critical - viewers decide in 1 second): open with a RELATABLE everyday situation, a surprising claim or a
@@ -121,7 +122,49 @@ Return ONLY JSON: {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {
  "headline": "caption first line: the news hook + main keyword, max 70 chars, 1 emoji",
  "hashtags": ["5 hashtags for this story, with #"], "freebie": "...", "key_terms": ["t1","t2","t3"]}}"""
 
-KINDS = {"hook", "bullets", "flow", "compare", "network", "code", "stat", "formula", "takeaway", "chat", "cta"}
+ALERT_PROMPT = """You write a 20-30 second "SAAVDHAN" (alert) Instagram Reel / YouTube Short in {language_style} for the faceless channel "{channel}".
+Viral style: urgent but CALM and helpful - a quick safety/privacy fix for an app EVERY Indian uses. Never scary-false, never clickbait lies.
+TOPIC: {title}  /  {title_en}
+CORE FACTS (the ONLY facts you may state; do NOT invent exact menu paths, numbers, laws or incidents): {facts}
+{feedback}{winners}
+LANGUAGE (critical): {language_instruction}
+HOOK: start with the app name + a warning, e.g. "WhatsApp chalane wale saavdhan!" / "Instagram ki ye setting abhi band karo". Max 10 words.
+{cta_rule}
+Also, in the cta narration, ask viewers to SHARE this in their family WhatsApp group.
+STRUCTURE: 6 to 8 short scenes (2-3 seconds each): hook, the risk in one line, why it matters, the fix (flow/bullets, describe
+steps generally like "settings mein privacy section"), a takeaway, cta. Each "narration": 6-12 words. Total 55-80 words.
+
+{schema}
+
+Return ONLY JSON: {{"scenes": [{{"kind": "hook", "narration": "...", "visual": {{...}}}}, ...],
+ "caption_summary": "2 short lines, same language as the narration",
+ "headline": "caption first line: the warning + app name, max 60 chars, 1 emoji like ⚠️",
+ "hashtags": ["5 hashtags with #"], "freebie": "...", "key_terms": ["t1","t2","t3"]}}"""
+
+PHOTO_PROMPT = """You write a 20-30 second "AI PHOTO PROMPT" Instagram Reel / YouTube Short in {language_style} for the faceless channel "{channel}".
+This is the most viral format right now: SHOW the stunning AI photo result FIRST, then reveal how to make it with your own photo.
+TODAY'S TRENDING THEMES (pick ONE that fits today): {themes}
+FACTS you may rely on: {facts}
+{feedback}{winners}
+LANGUAGE (critical): {language_instruction}
+HOOK: scene 1 MUST be kind=image showing the finished result (a generic, non-famous person or object), with narration like
+"Ye photo AI ne banayi hai - aap bhi apni photo se bana sakte ho". Max 12 words.
+{cta_rule}
+STRUCTURE: 6 to 8 short scenes: image (result), chat (show the prompt being typed with "upload your photo" + a short AI reply),
+flow (3 steps: open ChatGPT or Gemini, upload your photo, paste the prompt), one more image (a second variation) if it fits,
+takeaway, cta. Each "narration": 6-12 words. Total 55-85 words. Image prompts: photorealistic, cinematic, no text, no real people.
+
+{schema}
+
+Return ONLY JSON: {{"scenes": [{{"kind": "image", "narration": "...", "visual": {{"prompt": "...", "caption": "..."}}}}, ...],
+ "caption_summary": "2 short lines, same language as the narration",
+ "headline": "caption first line: the trend + 'AI prompt', max 60 chars, 1 emoji",
+ "hashtags": ["5 hashtags with #"], "freebie": "...", "key_terms": ["t1","t2","t3"]}}"""
+
+PHOTO_FACTS = ("ChatGPT and Google Gemini can create or edit images from a text prompt and an uploaded photo; availability, limits "
+               "and quality depend on the app and plan, and results vary. Never upload other people's photos without consent.")
+
+KINDS = {"hook", "bullets", "flow", "compare", "network", "code", "stat", "formula", "takeaway", "chat", "image", "cta"}
 
 def _s(x, n):
     return re.sub(r"\s+", " ", str(x or "")).strip()[:n]
@@ -179,6 +222,9 @@ def clean_scene(i, sc):
         elif kind == "takeaway":
             vis = {"text": _s(v.get("text"), 100), "terms": _list(v.get("terms"), 1, 3, 24)}
             assert vis["text"]
+        elif kind == "image":
+            vis = {"prompt": _s(v.get("prompt"), 500), "caption": _s(v.get("caption"), 40)}
+            assert len(vis["prompt"]) > 15
         elif kind == "chat":
             vis = {"user": _s(v.get("user"), 100), "ai": _s(v.get("ai"), 160)}
             assert vis["user"] and vis["ai"]
@@ -194,12 +240,12 @@ def validate(raw, min_scenes=5, max_scenes=10):
     scenes = [clean_scene(i + 1, s) for i, s in enumerate(raw["scenes"]) if isinstance(s, dict)]
     if not (min_scenes <= len(scenes) <= max_scenes):
         raise ValueError(f"need {min_scenes}-{max_scenes} scenes, got {len(scenes)}")
-    if scenes[0]["kind"] != "hook" or scenes[-1]["kind"] != "cta":
-        raise ValueError("first scene must be kind=hook and last scene kind=cta")
+    if scenes[0]["kind"] not in ("hook", "image") or scenes[-1]["kind"] != "cta":
+        raise ValueError("first scene must be kind=hook (or kind=image showing the result) and last scene kind=cta")
     if len({s["kind"] for s in scenes}) < 3:
         raise ValueError("use at least 3 different visual kinds")
     total = sum(len(s["narration"].split()) for s in scenes)
-    if not (50 <= total <= 150):
+    if not (40 <= total <= 150):
         raise ValueError(f"total narration is {total} words (need about 65-100, keep it short)")
     terms = [_s(t, 28) for t in (raw.get("key_terms") or []) if _s(t, 28)][:3]
     tags = [("#" + re.sub(r"[^\w]", "", str(t)).lower()) for t in (raw.get("hashtags") or []) if re.sub(r"[^\w]", "", str(t))][:5]
@@ -361,6 +407,12 @@ def _rules(kind):
     elif kind == "lesson":
         kw, what = "NOTES", ("short revision notes" if en else "short revision notes")
         spec = '"3-5 short revision bullet points of this lesson (each starting with •), max 600 chars"'
+    elif kind == "alert":
+        kw, what = "SAFE", ("the exact steps" if en else "exact steps")
+        spec = '"the step-by-step fix from this reel as short numbered lines, strictly from the CORE FACTS, max 500 chars"'
+    elif kind == "photo":
+        kw, what = "PROMPT", ("the exact prompt" if en else "exact prompt")
+        spec = '"the exact copy-paste prompt the viewer uses with their own photo in ChatGPT or Gemini, max 600 chars"'
     elif kind == "news":
         kw, what = "NEWS", ("a 3-line summary" if en else "3-line summary")
         spec = '"a 3-line plain summary of this story strictly from the FACTS, max 400 chars"'
@@ -459,3 +511,26 @@ def generate_news_script(story):
                                   cta_rule=cta_rule, schema=SCHEMA)
     log(f"Writing AI news: {story['title_en']} ({style})")
     return _make(prompt, story["facts"], story["title_en"], 4, 9)
+
+
+def generate_alert_script(alert):
+    style, instr = _language()
+    _, cta_rule, _ = _rules("alert")
+    en = C.LANGUAGE_MODE == "english_only"
+    def prompt(fb):
+        return ALERT_PROMPT.format(channel=C.SERIES_NAME, title=alert["title_en"] if en else alert["title"],
+                                   title_en=alert["title_en"], facts=alert["facts"], feedback=fb, winners=_winners(),
+                                   language_style=style, language_instruction=instr, cta_rule=cta_rule, schema=SCHEMA)
+    log(f"Writing SAAVDHAN alert: {alert['title_en']} ({style})")
+    return _make(prompt, alert["facts"], alert["title_en"], 5, 10)
+
+
+def generate_photo_script(themes):
+    style, instr = _language()
+    _, cta_rule, _ = _rules("photo")
+    def prompt(fb):
+        return PHOTO_PROMPT.format(channel=C.SERIES_NAME, themes="; ".join(themes), facts=PHOTO_FACTS, feedback=fb,
+                                   winners=_winners(), language_style=style, language_instruction=instr,
+                                   cta_rule=cta_rule, schema=SCHEMA)
+    log(f"Writing AI PHOTO PROMPT reel (themes: {themes[:2]})")
+    return _make(prompt, PHOTO_FACTS, "AI photo prompt trend", 5, 10)
