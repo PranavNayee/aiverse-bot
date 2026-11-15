@@ -18,8 +18,12 @@ SCHEMA = """Scene kinds and their "visual" fields (keep texts SHORT, they appear
 - chat:     {"user": "what the person types to the AI, max 90 chars", "ai": "the AI's short reply, max 140 chars"}  (a ChatGPT-style chat demo that SHOWS a result)
 - cta:      {"text": "teaser for the next video, max 10 words"}"""
 
-HOOK_RULE = """HOOK (critical for views): the first sentence must promise a concrete PAYOFF or show a surprising real-life RESULT
-the viewer gets (e.g. "Ek prompt se 1 ghante ka kaam 2 minute mein"), never a vague question like "Kya aap jaante hain AI kya hai?".
+HOOK_RULE = """HOOK (critical - viewers decide in 1 second): open with a RELATABLE everyday situation, a surprising claim or a
+common mistake that creates a curiosity gap, e.g. "Instagram ko kaise pata tumhe kaunsi reel pasand aayegi?",
+"90% log ChatGPT galat tareeke se use karte hain", "Tumhara phone har roz tumhari photo pehchanta hai - kaise?".
+BANNED openers (overused, make people swipe): "30 second mein", "1 minute mein", "Kya aap jaante hain", "Kya aapko pata hai",
+"Aaj hum seekhenge", "simple matlab", "Namaste", "Hello doston", anything that sounds like a class or lecture.
+Hook narration: max 12 words. The hook visual text: max 6 punchy words.
 Talk to ONE viewer ("aap"/"you"). No greetings, no channel intro.
 LOOP: make the very last sentence flow naturally back into the first line, so the reel feels seamless when it replays."""
 
@@ -39,8 +43,8 @@ LANGUAGE (critical): {language_instruction}
 {cta_rule}
 ACCURACY (critical): Do not invent statistics, dates, names, prices or claims beyond the CORE FACTS. If the analogy is imperfect, say "roughly" or "approximately". Never mention politics or religion.
 
-STRUCTURE: 6 to 7 scenes. Scene 1 kind=hook (narration 7-12 words). Then analogy, concept breakdown (use different visual kinds: flow / compare / network / bullets / formula / code / stat where they truly fit the topic), an example, then kind=takeaway, last kind=cta (narration 12-24 words: the comment-keyword offer, tease the next lesson, ask to follow).
-Each scene "narration": 8-18 words (hook and cta may be shorter). Total narration about 70-100 words. Fast, punchy, no filler.
+STRUCTURE: 7 to 9 short scenes (about 2-3 seconds each). Scene 1 kind=hook. Then analogy, concept breakdown (use different visual kinds: flow / compare / network / bullets / formula / code / stat where they truly fit the topic), an example, then kind=takeaway, last kind=cta (narration 12-24 words: the comment-keyword offer, tease the next lesson, ask to follow).
+Each scene "narration": 6-12 words. Total narration about 65-90 words. Fast, punchy, conversational, no filler, no lecture tone.
 Visuals must show THIS lesson's real content (real step names, real layer sizes, real formula), never generic placeholders.
 
 {schema}
@@ -87,9 +91,9 @@ Keywords: {keywords}
 LANGUAGE (critical): {language_instruction}
 {hook_rule}
 {cta_rule}
-STRUCTURE: 5 to 7 scenes. Scene 1 kind=hook showing the payoff. Use kind=chat to SHOW an example prompt and a realistic short
+STRUCTURE: 6 to 8 short scenes (2-3 seconds each). Scene 1 kind=hook. Use kind=chat to SHOW an example prompt and a realistic short
 AI reply when the trick involves a chatbot; use flow for steps, compare for before/after. Then kind=takeaway, last kind=cta.
-Each "narration": 8-18 words. Total narration about 65-95 words. No emojis/symbols in "narration".
+Each "narration": 6-12 words. Total narration about 60-85 words. No emojis/symbols in "narration".
 
 {schema}
 
@@ -106,9 +110,9 @@ FACTS (the ONLY facts you may state; never add numbers, dates, prices, countries
 LANGUAGE (critical): {language_instruction}
 {hook_rule}
 {cta_rule}
-STRUCTURE: 5 to 6 scenes: hook (the news as a surprising payoff), what happened, what it means for a normal user (say
+STRUCTURE: 6 to 8 short scenes (2-3 seconds each): hook (the news as a surprising payoff), what happened, what it means for a normal user (say
 "reportedly" or "according to the news" if unsure), a takeaway, then cta. Use stat / bullets / flow / compare / chat kinds.
-Each "narration": 8-18 words. Total narration about 60-85 words. No emojis/symbols in "narration".
+Each "narration": 6-12 words. Total narration about 55-80 words. No emojis/symbols in "narration".
 
 {schema}
 
@@ -139,8 +143,8 @@ def clean_scene(i, sc):
         raise ValueError(f"scene {i}: unknown kind '{kind}'")
     nar = _s(sc.get("narration"), 400)
     words = len(nar.split())
-    if not (5 <= words <= 38):
-        raise ValueError(f"scene {i}: narration has {words} words (need 8-30)")
+    if not (3 <= words <= 38):
+        raise ValueError(f"scene {i}: narration has {words} words (need 6-12)")
     if _roman_ratio(nar) < 0.9:
         raise ValueError(f"scene {i}: narration must be in Roman script, no Devanagari")
     v = sc.get("visual") or {}
@@ -381,7 +385,7 @@ def generate_lesson_script(lesson, num, next_lesson):
                                     language_style=language_style, language_instruction=language_instruction,
                                     hook_rule=_rules("lesson")[0], cta_rule=_rules("lesson")[1])
     log(f"Writing lesson #{num}: {lesson['title_en']} ({language_style})")
-    return _make(prompt, lesson["facts"], lesson["title_en"], 5, 8)
+    return _make(prompt, lesson["facts"], lesson["title_en"], 6, 10)
 
 def generate_fun_fact_script(fact):
     def prompt(fb):
@@ -441,7 +445,7 @@ def generate_trick_script(trick):
                                    feedback=fb, winners=_winners(), language_style=style, language_instruction=instr,
                                    hook_rule=hook_rule, cta_rule=cta_rule, schema=SCHEMA)
     log(f"Writing AI trick: {trick['title_en']} ({style})")
-    return _make(prompt, trick["facts"], trick["title_en"], 5, 9)
+    return _make(prompt, trick["facts"], trick["title_en"], 5, 10)
 
 
 def generate_news_script(story):
@@ -454,4 +458,4 @@ def generate_news_script(story):
                                   language_style=style, language_instruction=instr, hook_rule=hook_rule,
                                   cta_rule=cta_rule, schema=SCHEMA)
     log(f"Writing AI news: {story['title_en']} ({style})")
-    return _make(prompt, story["facts"], story["title_en"], 4, 7)
+    return _make(prompt, story["facts"], story["title_en"], 4, 9)

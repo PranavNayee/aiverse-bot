@@ -120,8 +120,9 @@ def _direction(text, minimal=False, paragraphs=False):
                   "English tech words in Indian English.")
     return ("Read ONLY the text under TRANSCRIPT aloud. Never read these notes.\n"
             "# AUDIO PROFILE: a warm, confident young Indian male tech teacher making an Instagram reel.\n"
-            f"# DIRECTOR'S NOTES\nStyle: real human, conversational, expressive, energetic but clear, smiling. "
-            f"Never robotic.\nAccent: {accent}\nPace: natural, short pauses at commas and full stops."
+            f"# DIRECTOR'S NOTES\nStyle: a top Indian tech creator on Instagram: high energy, confident, excited to share a "
+            f"secret, punchy. Hit the FIRST word hard. Never flat, never robotic, never like a teacher reading.\n"
+            f"Accent: {accent}\nPace: fast and snappy, minimal pauses, quick at commas."
             + (" Leave a clear pause of about one second between paragraphs." if paragraphs else "") + "\n"
             f"# TRANSCRIPT\n{text}")
 
@@ -335,7 +336,27 @@ def _gemini_reel(scenes):
     return out
 
 
+VOICE_SPEED = float(os.environ.get("VOICE_SPEED", "1.1"))      # 1.1 = 10% faster (pitch kept) - punchier reels
+
+
+def _speed_up(res):
+    """Speed every clip up by VOICE_SPEED (ffmpeg atempo keeps the pitch) and rescale the word timings."""
+    if abs(VOICE_SPEED - 1.0) < 0.01:
+        return res
+    import subprocess
+    out = []
+    for path, d, words in res:
+        fast = path.rsplit(".", 1)[0] + "_fast.wav"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", path, "-filter:a", f"atempo={VOICE_SPEED}", fast], check=True)
+        out.append((fast, voice.duration(fast), [(a / VOICE_SPEED, b / VOICE_SPEED, w) for a, b, w in words]))
+    return out
+
+
 def speak_scenes(scenes):
+    return _speed_up(_speak_scenes(scenes))
+
+
+def _speak_scenes(scenes):
     """Voice every scene with the best provider that can do ALL of them. Returns [(path, secs, words)].
     STRICT_VOICE=true: never fall back to the robotic Edge voice - fail instead."""
     global LAST

@@ -9,7 +9,9 @@ on:
     - cron: "23 17 * * *"   # 22:53 IST  (backup)
     - cron: "11 21 * * *"   # 02:41 IST  (backup, waits and posts at 08:00)
     - cron: "53 23 * * *"   # 05:23 IST  (last backup, waits and posts at 08:00)
-    - cron: "13 7 * * *"    # 12:43 IST  (makes the 19:00 reel)
+    - cron: "47 2 * * *"    # 08:17 IST  (makes the 19:00 reel right after the morning post)
+    - cron: "21 4 * * *"    # 09:51 IST  (backup)
+    - cron: "13 7 * * *"    # 12:43 IST  (backup)
     - cron: "37 9 * * *"    # 15:07 IST  (backup for 19:00, waits and posts)
     - cron: "49 11 * * *"   # 17:19 IST  (last backup for 19:00)
   workflow_dispatch:

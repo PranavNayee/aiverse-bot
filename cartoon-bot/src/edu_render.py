@@ -21,6 +21,10 @@ EN = os.environ.get("LANGUAGE_MODE", "hinglish") == "english_only"
 BRAND = (os.environ.get("SERIES_NAME") or "AIVerse").upper()[:14]
 UI = {"remember": "REMEMBER" if EN else "YAAD RAKHO", "next": "NEXT LESSON",
       "daily": "A new AI video every day" if EN else "Roz ek naya AI video"}
+STYLE = (os.environ.get("VIDEO_STYLE") or "viral").strip().lower()   # viral (default) | classic
+VIRAL = STYLE == "viral"
+CAP_Y = 1440                        # viral captions: big, centred, lower-middle (eye rests here; clear of IG UI)
+YELLOW, STROKE = (255, 214, 10), (0, 0, 0)
 TOP, BOTTOM = 270, 1290            # safe content band (captions live below, phone UI covers the very top/bottom)
 
 # ---------------------------------------------------------------- helpers
@@ -174,6 +178,8 @@ def chrome(frame, ctx, t):
     acc = ctx["accent"]
     for i, (cx, cy, r, col) in enumerate(((220, 520, 760, acc), (880, 1180, 820, INDIGO), (500, 1700, 700, mix(acc, INDIGO, .5)))):
         put(frame, _orb(col, r), cx + 40 * math.sin(TAU * 0.04 * (ctx["t0"] + t) + i), cy + 50 * math.cos(TAU * 0.03 * (ctx["t0"] + t) + i), 1.0, 0.33)
+    if VIRAL:                                   # no header / lesson badge / progress bar (looks like a class -> swipe)
+        return
     d = ImageDraw.Draw(frame, "RGBA")
     # brand pill (top-left) and lesson badge (top-right)
     card(d, (60, 92, 372, 168), 38, (255, 255, 255, 28), rgba(acc, .8), 2)
@@ -193,7 +199,7 @@ def chrome(frame, ctx, t):
 def s_hook(frame, d, v, t, dur, ctx):
     acc = ctx["accent"]
     e = emoji_img(v.get("emoji") or "🤔", 300)
-    pop = max(0.55, ease_back(prog(t, 0.0, 0.3)))     # visible on frame 0 (autoplay preview + first second)
+    pop = max(0.9 if VIRAL else 0.55, ease_back(prog(t, 0.0, 0.3)))   # full-size on frame 0 (autoplay preview)
     ring = 0.5 + 0.5 * math.sin(TAU * 0.7 * t)
     for k in (0, 1):                                   # pulsing rings behind the emoji
         r = 250 + 55 * ((ring + k * .5) % 1)
@@ -202,7 +208,9 @@ def s_hook(frame, d, v, t, dur, ctx):
         if alpha_val > 0.01:  # Only draw if visible
             d.ellipse((540 - r, 600 - r, 540 + r, 600 + r), outline=rgba(acc, alpha_val), width=5)
     if e and pop > 0:  # Only draw emoji if it exists and is visible
-        put(frame, e, 540, 600 + 10 * math.sin(TAU * 0.6 * t), pop)
+        put(frame, e, 540, 600 + 10 * math.sin(TAU * 0.6 * t), pop * (1.35 if VIRAL else 1.0))
+    if VIRAL:
+        return
     f, lines, size = fit(d, v["text"], 900, 400, 100, 56)
     y0 = 960
     k = 1.12 - 0.12 * ease_out(prog(t, 0.0, 0.35))      # punch-in: starts 12% bigger, settles in 0.35 s
@@ -514,7 +522,19 @@ DRAWERS = {"hook": s_hook, "bullets": s_bullets, "flow": s_flow, "compare": s_co
 # ---------------------------------------------------------------- captions (speech bubble, word-by-word karaoke)
 BUBBLE = (335, 1318, 950, 1572)            # x0, y0, x1, y1 - left of Instagram's right-side buttons, above its caption
 MASCOT_XY = (182, 1452)
-XFADE = 0.28                                # crossfade length between scenes (s)
+XFADE = 0.16 if VIRAL else 0.28             # crossfade length between scenes (s)
+
+
+def camera(img, st, dur):
+    """Snap-zoom on every cut (1.10 -> 1.0 in 0.22 s) + slow push-in: something always moves (pattern interrupt)."""
+    snap = 0.10 * (1 - ease_out(clamp(st / 0.22)))
+    push = 0.045 * clamp(st / max(dur, 0.5))
+    z = 1.0 + snap + push
+    if z < 1.003:
+        return img
+    cw, ch = W / z, H / z
+    x0, y0 = (W - cw) / 2, (H - ch) / 2 - 40 * push
+    return img.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + cw, y0 + ch))
 
 
 def make_chunks(words, max_words=4, max_chars=24, gap=0.35):
@@ -566,6 +586,46 @@ def _bubble_layout(texts):
     return f, tuple(placed)
 
 
+@functools.lru_cache(maxsize=512)
+def _cap_layout(texts, big):
+    d = ImageDraw.Draw(Image.new("RGBA", (8, 8)))
+    maxw = 900
+    for size in range(124 if big else 96, 55, -6):
+        f = font(size)
+        sp = d.textlength(" ", font=f)
+        lines, cur, curw = [], [], 0.0
+        for i, w in enumerate(texts):
+            ww = d.textlength(w.upper(), font=f)
+            if cur and curw + sp + ww > maxw:
+                lines.append((cur, curw)); cur, curw = [], 0.0
+            curw = curw + (sp if cur else 0) + ww
+            cur.append((i, w.upper(), ww))
+        if cur:
+            lines.append((cur, curw))
+        if len(lines) <= 2 and all(lw <= maxw for _, lw in lines):
+            break
+    return f, size, sp, tuple((tuple(items), lw) for items, lw in lines)
+
+
+def draw_captions(frame, chunk, t, acc, big=False, cy=CAP_Y):
+    """Viral-style captions: one big centred block, white with black outline, spoken word in yellow, pop-in."""
+    if not chunk:
+        return
+    d = ImageDraw.Draw(frame, "RGBA")
+    texts = tuple(w[2] for w in chunk["words"])
+    f, size, sp, lines = _cap_layout(texts, big)
+    pop = ease_back(clamp((t - chunk["start"]) / 0.12))
+    yo = (1 - pop) * 22
+    for li, (items, lw) in enumerate(lines):
+        y = cy + (li - (len(lines) - 1) / 2) * size * 1.12 + yo
+        x = 540 - lw / 2
+        for i, w, ww in items:
+            ws, we, _ = chunk["words"][i]
+            col = YELLOW if ws <= t < we + 0.05 else (255, 255, 255)
+            d.text((x, y), w, font=f, fill=col, anchor="lm", stroke_width=max(6, size // 12), stroke_fill=STROKE)
+            x += ww + sp
+
+
 def draw_bubble(frame, chunk, t, acc):
     if not chunk:
         return
@@ -609,7 +669,7 @@ def render_video(scenes, audio_wav, levels, out_path, label, level="basics", wor
     total = scenes[-1]["start"] + scenes[-1]["dur"]
     n = int(round(total * FPS))
     acc = LEVEL_COLOR.get(level, LEVEL_COLOR["basics"])
-    chunks = make_chunks(words or [])
+    chunks = make_chunks(words or [], max_words=3 if VIRAL else 4, max_chars=18 if VIRAL else 24)
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
            "-i", "-", "-i", audio_wav, "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "veryfast",
            "-crf", "20", "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart",
@@ -631,6 +691,8 @@ def render_video(scenes, audio_wav, levels, out_path, label, level="basics", wor
             st = t - sc["start"]
             ctx = {"accent": acc, "label": label, "t0": sc["start"], "total": total}
             content = draw_content(sc, st, sc["dur"], ctx)
+            if VIRAL:
+                content = camera(content, st, sc["dur"])
             prev_content = content
             frame = content
             if xfade_src is not None and st < XFADE and si > 0:
@@ -638,14 +700,24 @@ def render_video(scenes, audio_wav, levels, out_path, label, level="basics", wor
             elif st >= XFADE:
                 xfade_src = None
             frame = frame.copy() if frame is content else frame
-            if mascot_on:
+            if mascot_on and (not VIRAL or sc["kind"] == "cta"):   # viral: bot only waves goodbye at the end
                 talk = float(levels[f]) if f < len(levels) else 0.0
                 mascot.draw(frame, acc, sc["kind"], t, st, talk, *MASCOT_XY)
-            if f == snap_f:                                  # clean cover: no half-sentence caption bubble
+            if f == snap_f and not VIRAL:                    # clean cover: no half-sentence caption bubble
                 frame.save(snapshot[0], quality=92)
             while ci < len(chunks) and t > chunks[ci]["end"]:
                 ci += 1
-            if ci < len(chunks) and chunks[ci]["start"] <= t:
+            if VIRAL:
+                cur = chunks[ci] if ci < len(chunks) and chunks[ci]["start"] <= t else None
+                if cur is None and si == 0 and ci < len(chunks):
+                    cur = chunks[ci]                         # frame 0: show the first words immediately
+                if sc["kind"] == "hook":
+                    draw_captions(frame, cur, t, acc, big=True, cy=1050)
+                elif sc["kind"] != "cta":
+                    draw_captions(frame, cur, t, acc)
+                if f == snap_f:
+                    frame.save(snapshot[0], quality=92)
+            elif ci < len(chunks) and chunks[ci]["start"] <= t:
                 draw_bubble(frame, chunks[ci], t, acc)
             im = frame
             proc.stdin.write(im.tobytes())
