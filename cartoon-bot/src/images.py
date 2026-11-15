@@ -56,6 +56,17 @@ def _gemini(prompt):
     raise RuntimeError(f"Gemini image failed: {last}")
 
 
+def _huggingface(prompt, seed):
+    """FLUX.1-schnell on Hugging Face (free monthly credits with HF_TOKEN)."""
+    model = os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
+    r = requests.post(f"https://router.huggingface.co/hf-inference/models/{model}", timeout=(10, 180),
+                      headers={"Authorization": f"Bearer {os.environ['HF_TOKEN']}", "Accept": "image/jpeg"},
+                      json={"inputs": prompt, "parameters": {"width": 896, "height": 1120, "seed": seed}})
+    if r.status_code != 200 or not r.headers.get("content-type", "").startswith("image"):
+        raise RuntimeError(f"HuggingFace {r.status_code}: {r.text[:150]}")
+    return Image.open(io.BytesIO(r.content)).convert("RGB"), "huggingface-flux"
+
+
 def _pollinations(prompt, seed):
     q = urllib.parse.quote(prompt[:600])
     r = requests.get(f"https://image.pollinations.ai/prompt/{q}", timeout=120,
@@ -73,7 +84,9 @@ def generate(prompt, out_path, seed=7):
     if BANNED.search(prompt):
         raise RuntimeError("image prompt rejected by safety filter")
     errors = []
-    for fn in ((lambda: _gemini(prompt)) if os.environ.get("GEMINI_API_KEY") else None, lambda: _pollinations(prompt, seed)):
+    for fn in ((lambda: _gemini(prompt)) if os.environ.get("GEMINI_API_KEY") else None,
+               (lambda: _huggingface(prompt, seed)) if os.environ.get("HF_TOKEN") else None,
+               lambda: _pollinations(prompt, seed)):
         if fn is None:
             continue
         try:

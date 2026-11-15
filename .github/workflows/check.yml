@@ -54,6 +54,7 @@ jobs:
         run: python cartoon-bot/src/images.py "cinematic photo of a young Indian college student in a cozy hostel room at night, glowing holographic AI notes floating around, warm desk lamp, ultra detailed"
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
           PYTHONPATH: cartoon-bot/src
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch' && inputs.image_test
