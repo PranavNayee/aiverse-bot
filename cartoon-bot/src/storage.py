@@ -5,9 +5,7 @@ from util import retry, log
 
 def _headers(extra=None):
     key = C.SUPABASE_KEY()
-    h = {"apikey": key}
-    if key.startswith("eyJ"):                 # legacy JWT keys also go in Authorization; new sb_secret keys don't
-        h["Authorization"] = f"Bearer {key}"
+    h = {"apikey": key, "Authorization": f"Bearer {key}"}
     h.update(extra or {})
     return h
 
