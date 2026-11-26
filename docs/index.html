@@ -888,9 +888,8 @@
         <!-- Form -->
         <form onsubmit="handleLoginSubmit(event)" class="mt-6 space-y-4">
           <div>
-            <label class="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1.5 flex items-center justify-between">
+            <label class="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1.5">
               <span>Admin Passcode</span>
-              <span class="text-slate-500 text-[9px]">Default: aiverse2025</span>
             </label>
             <div class="relative">
               <input id="inputAdminPassword" type="password" autocomplete="current-password" placeholder="Enter admin password..." class="w-full pl-10 pr-10 py-3 rounded-xl bg-panel border border-white/10 focus:border-neonEmerald focus:outline-none text-sm font-mono text-white placeholder-slate-500 transition shadow-inner">
@@ -1300,7 +1299,7 @@
           void card.offsetWidth;
           card.classList.add('shake');
         }
-        showToast('⚠️ Incorrect password. Try aiverse2025', false);
+        showToast('⚠️ Incorrect password. Access denied.', false);
       }
     }
 
