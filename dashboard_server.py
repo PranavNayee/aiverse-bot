@@ -58,13 +58,14 @@ def get_run_logs(run_id):
 def get_instagram_posts(limit=8):
     url = (f"https://graph.facebook.com/v21.0/{IG_USER_ID}/media?"
            f"fields=id,caption,media_type,permalink,thumbnail_url,media_url,timestamp&limit={limit}&access_token={IG_TOKEN}")
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "AIVerse-Dashboard/2.0"})
-        with urllib.request.urlopen(req, timeout=12) as resp:
-            data = json.loads(resp.read().decode())
+    code, out, _ = run_cmd(["curl", "-s", url])
+    if code == 0 and out:
+        try:
+            data = json.loads(out)
             return data.get("data", [])
-    except Exception:
-        return []
+        except Exception:
+            pass
+    return []
 
 def trigger_workflow(workflow_file, inputs=None):
     cmd = ["gh", "workflow", "run", workflow_file, "--repo", REPO]
