@@ -1410,7 +1410,12 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(HTML_PAGE.encode("utf-8"))
+            docs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "index.html")
+            if os.path.exists(docs_path):
+                with open(docs_path, "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self.wfile.write(HTML_PAGE.encode("utf-8"))
 
         elif url.path == "/api/status":
             wfs = get_workflows_status()
