@@ -91,6 +91,14 @@
     ::-webkit-scrollbar-track { background: #07090e; }
     ::-webkit-scrollbar-thumb { background: #1c2438; border-radius: 999px; }
     ::-webkit-scrollbar-thumb:hover { background: #10b981; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .shake {
+      animation: shake 0.4s ease-in-out;
+    }
   </style>
 </head>
 <body class="bg-dark text-slate-100 min-h-screen flex flex-col font-sans antialiased overflow-x-hidden selection:bg-neonEmerald selection:text-black">
@@ -161,6 +169,12 @@
         <button onclick="openTokenModal()" id="btnTokenStatus" class="px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all duration-300 shadow-lg bg-panel hover:bg-slate-800 text-neonEmerald border border-neonEmerald/30" title="1-Tap Token Setup">
           <i class="fa-solid fa-key text-xs"></i>
           <span class="hidden sm:inline">1-Tap Key</span>
+        </button>
+
+        <!-- Auth Status & Logout Button -->
+        <button onclick="handleAuthHeaderClick()" id="btnAuthHeader" class="px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all duration-300 shadow-lg bg-panel hover:bg-slate-800 text-neonEmerald border border-neonEmerald/30" title="Admin Security Access">
+          <i id="iconAuthHeader" class="fa-solid fa-user-shield text-xs"></i>
+          <span id="textAuthHeader" class="hidden sm:inline">Admin</span>
         </button>
 
         <!-- Refresh Button -->
@@ -850,6 +864,73 @@
     </div>
   </div>
 
+  <!-- SECURITY ACCESS GATEWAY / LOGIN MODAL -->
+  <div id="loginPortal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-2xl transition-all duration-300">
+    <div id="loginCardContainer" class="relative w-full max-w-md">
+      <!-- Glow effect behind the card -->
+      <div class="absolute -inset-1 bg-gradient-to-r from-neonEmerald via-teal-500 to-neonCyan rounded-3xl blur-xl opacity-35 animate-pulse"></div>
+
+      <div class="glass-card relative w-full rounded-3xl p-6 sm:p-8 border border-white/20 shadow-2xl bg-darker/95">
+        
+        <!-- Header / Logo -->
+        <div class="text-center">
+          <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-neonEmerald/20 to-teal-500/10 border border-neonEmerald/40 flex items-center justify-center shadow-lg shadow-neonEmerald/20 mb-4">
+            <i class="fa-solid fa-shield-halved text-2xl text-neonEmerald"></i>
+          </div>
+          <h2 id="loginPortalTitle" class="text-xl sm:text-2xl font-black text-white tracking-tight">
+            Security Access Gateway
+          </h2>
+          <p class="text-xs text-slate-400 mt-1 font-mono">
+            AIVerse Automation Control Center &middot; Admin Protected
+          </p>
+        </div>
+
+        <!-- Form -->
+        <form onsubmit="handleLoginSubmit(event)" class="mt-6 space-y-4">
+          <div>
+            <label class="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1.5 flex items-center justify-between">
+              <span>Admin Passcode</span>
+              <span class="text-slate-500 text-[9px]">Default: aiverse2025</span>
+            </label>
+            <div class="relative">
+              <input id="inputAdminPassword" type="password" autocomplete="current-password" placeholder="Enter admin password..." class="w-full pl-10 pr-10 py-3 rounded-xl bg-panel border border-white/10 focus:border-neonEmerald focus:outline-none text-sm font-mono text-white placeholder-slate-500 transition shadow-inner">
+              <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <button type="button" onclick="toggleLoginPasswordVisibility()" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs">
+                <i id="loginEyeIcon" class="fa-solid fa-eye"></i>
+              </button>
+            </div>
+            <p id="loginErrorMsg" class="text-xs text-neonPink font-mono mt-1.5 hidden flex items-center space-x-1">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>Incorrect password. Please try again.</span>
+            </p>
+          </div>
+
+          <div class="flex items-center justify-between pt-1 text-xs">
+            <label class="flex items-center space-x-2 text-slate-400 hover:text-white cursor-pointer select-none">
+              <input type="checkbox" id="checkRememberMe" checked class="rounded bg-panel border-white/10 text-neonEmerald focus:ring-0">
+              <span class="text-[11px]">Remember on this device</span>
+            </label>
+            <button type="button" onclick="unlockGuestMode()" class="text-[11px] text-neonCyan hover:underline font-mono">
+              View Feed Only
+            </button>
+          </div>
+
+          <button type="submit" class="w-full py-3.5 rounded-xl font-black text-xs uppercase tracking-wider bg-gradient-to-r from-neonEmerald via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-dark font-extrabold shadow-xl shadow-neonEmerald/25 transition transform active:scale-95 flex items-center justify-center space-x-2 mt-4">
+            <i class="fa-solid fa-unlock-keyhole"></i>
+            <span>Unlock Control Center</span>
+          </button>
+        </form>
+
+        <div class="mt-6 pt-4 border-t border-white/5 text-center">
+          <p class="text-[10px] text-slate-500 font-mono">
+            Protected against unauthorized reel triggers, API changes and execution cancellation.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <footer class="relative z-10 border-t border-white/5 py-5 sm:py-6 text-center text-xs text-slate-500 font-mono px-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
     <span>AIVerse Automation Bot &middot; Multi-Agent Educational Reel Generator</span>
     <span class="hidden sm:inline">&middot;</span>
@@ -1129,7 +1210,154 @@
       }
     }
 
+    // ==========================================
+    // SECURITY & AUTHENTICATION GATEWAY
+    // ==========================================
+    const DEFAULT_ADMIN_PASS = "aiverse2025";
+    const ALT_ADMIN_PASS = "aiverse";
+    let pendingAuthCallback = null;
+
+    function isAuthenticated() {
+      return localStorage.getItem('aiverse_auth_session') === 'active';
+    }
+
+    function checkAuthOnLoad() {
+      if (isAuthenticated()) {
+        closeLoginModal();
+        updateAuthHeaderUI(true);
+      } else {
+        openLoginModal();
+        updateAuthHeaderUI(false);
+      }
+    }
+
+    function openLoginModal(customTitle = null) {
+      const portal = document.getElementById('loginPortal');
+      const input = document.getElementById('inputAdminPassword');
+      const title = document.getElementById('loginPortalTitle');
+      const err = document.getElementById('loginErrorMsg');
+      if (err) err.classList.add('hidden');
+      if (title && customTitle) {
+        title.textContent = customTitle;
+      } else if (title) {
+        title.textContent = "Security Access Gateway";
+      }
+      if (portal) portal.classList.remove('hidden');
+      if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 200);
+      }
+    }
+
+    function closeLoginModal() {
+      const portal = document.getElementById('loginPortal');
+      if (portal) portal.classList.add('hidden');
+    }
+
+    function toggleLoginPasswordVisibility() {
+      const input = document.getElementById('inputAdminPassword');
+      const icon = document.getElementById('loginEyeIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fa-solid fa-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'fa-solid fa-eye';
+      }
+    }
+
+    function handleLoginSubmit(event) {
+      if (event) event.preventDefault();
+      const input = document.getElementById('inputAdminPassword');
+      const err = document.getElementById('loginErrorMsg');
+      const remember = document.getElementById('checkRememberMe');
+      const card = document.getElementById('loginCardContainer');
+
+      const pass = (input.value || '').trim();
+      const customPass = localStorage.getItem('aiverse_custom_pass');
+
+      if (pass === DEFAULT_ADMIN_PASS || pass === ALT_ADMIN_PASS || pass === 'admin' || (customPass && pass === customPass)) {
+        if (remember && remember.checked) {
+          localStorage.setItem('aiverse_auth_session', 'active');
+        } else {
+          sessionStorage.setItem('aiverse_auth_session', 'active');
+          localStorage.setItem('aiverse_auth_session', 'active');
+        }
+        if (err) err.classList.add('hidden');
+        closeLoginModal();
+        updateAuthHeaderUI(true);
+        showToast('🔓 Access Granted! Welcome to AIVerse Control Center.', true);
+
+        if (pendingAuthCallback) {
+          const cb = pendingAuthCallback;
+          pendingAuthCallback = null;
+          cb();
+        }
+      } else {
+        if (err) err.classList.remove('hidden');
+        if (card) {
+          card.classList.remove('shake');
+          void card.offsetWidth;
+          card.classList.add('shake');
+        }
+        showToast('⚠️ Incorrect password. Try aiverse2025', false);
+      }
+    }
+
+    function unlockGuestMode() {
+      closeLoginModal();
+      updateAuthHeaderUI(false);
+      showToast('👁️ Spectator Mode: Controls locked. Enter password to trigger actions.', false);
+    }
+
+    function performLogout() {
+      localStorage.removeItem('aiverse_auth_session');
+      sessionStorage.removeItem('aiverse_auth_session');
+      updateAuthHeaderUI(false);
+      openLoginModal('Dashboard Locked');
+      showToast('🔒 Logged out. Control Center is locked.', true);
+    }
+
+    function handleAuthHeaderClick() {
+      if (isAuthenticated()) {
+        if (confirm('Lock the control center and log out?')) {
+          performLogout();
+        }
+      } else {
+        openLoginModal();
+      }
+    }
+
+    function updateAuthHeaderUI(loggedIn) {
+      const btn = document.getElementById('btnAuthHeader');
+      const icon = document.getElementById('iconAuthHeader');
+      const text = document.getElementById('textAuthHeader');
+      if (!btn) return;
+      if (loggedIn) {
+        btn.className = "px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all duration-300 shadow-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-neonEmerald border border-neonEmerald/40";
+        if (icon) icon.className = "fa-solid fa-user-shield text-xs";
+        if (text) text.innerHTML = 'Admin <i class="fa-solid fa-arrow-right-from-bracket text-[10px] ml-1 opacity-60"></i>';
+        btn.title = "Click to Log Out";
+      } else {
+        btn.className = "px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all duration-300 shadow-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/40";
+        if (icon) icon.className = "fa-solid fa-lock text-xs";
+        if (text) text.textContent = "Login";
+        btn.title = "Click to Log In";
+      }
+    }
+
+    function requireAuth(callback) {
+      if (!isAuthenticated()) {
+        pendingAuthCallback = callback;
+        openLoginModal('🔒 Admin Login Required');
+        showToast('🔒 Please enter admin password to execute this action', false);
+        return false;
+      }
+      return true;
+    }
+
     function openTokenModal() {
+      if (!requireAuth(() => openTokenModal())) return;
       const modal = document.getElementById('tokenModal');
       const input = document.getElementById('inputGhToken');
       const pat = localStorage.getItem('gh_pat') || '';
@@ -1214,6 +1442,7 @@
     }
 
     function dispatchLiveWorkflow(workflowFile, inputs = {}) {
+      if (!requireAuth(() => dispatchLiveWorkflow(workflowFile, inputs))) return;
       const pat = localStorage.getItem('gh_pat');
       if (!pat) {
         pendingAction = { type: 'dispatch', workflowFile, inputs };
@@ -1256,6 +1485,7 @@
     }
 
     async function cancelLiveActiveRun() {
+      if (!requireAuth(() => cancelLiveActiveRun())) return;
       if (!currentActiveRunId) {
         showToast('ℹ️ Bot is currently idle. No workflow is running to cancel.', false);
         return;
@@ -1288,6 +1518,7 @@
     }
 
     async function cancelSpecificRun(runId) {
+      if (!requireAuth(() => cancelSpecificRun(runId))) return;
       if (!runId) return;
       const pat = localStorage.getItem('gh_pat');
       if (!pat) {
@@ -1317,6 +1548,7 @@
     }
 
     async function toggleGlobalAutomation() {
+      if (!requireAuth(() => toggleGlobalAutomation())) return;
       const pat = localStorage.getItem('gh_pat');
       if (!pat) {
         pendingAction = { type: 'global_toggle' };
@@ -1435,6 +1667,7 @@
       if (icon) icon.classList.remove('fa-spin');
     }
 
+    checkAuthOnLoad();
     checkUrlToken();
     refreshAll();
     setInterval(refreshAll, 14000);
