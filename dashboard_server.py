@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-AIVerse Bot - Ultra-Modern Animated Command Center
-Futuristic glassmorphic UI with dynamic particle mesh, live countdown, terminal log streaming, and action controls.
-Runs with standard Python library (no external pip dependencies needed).
+AIVerse Bot - Ultra-Modern Animated Command Center with In-Dashboard Video Player
+Futuristic glassmorphic UI with dynamic particle mesh, live countdown, terminal log streaming,
+action controls, and an interactive 9:16 Video Reel Player to preview and play generated reels directly!
 """
 
 import http.server
@@ -52,16 +52,15 @@ def get_run_logs(run_id):
     code, out, err = run_cmd(["gh", "run", "view", str(run_id), "--repo", REPO, "--log"], timeout=30)
     if code == 0:
         lines = out.split("\n")
-        # Return last 300 lines for readability
         return "\n".join(lines[-300:]) if len(lines) > 300 else out
     return err or "Log not ready or workflow in progress..."
 
-def get_instagram_posts(limit=6):
+def get_instagram_posts(limit=8):
     url = (f"https://graph.facebook.com/v21.0/{IG_USER_ID}/media?"
            f"fields=id,caption,media_type,permalink,thumbnail_url,media_url,timestamp&limit={limit}&access_token={IG_TOKEN}")
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "AIVerse-Dashboard/2.0"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=12) as resp:
             data = json.loads(resp.read().decode())
             return data.get("data", [])
     except Exception:
@@ -89,7 +88,8 @@ HTML_PAGE = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AIVerse OS &middot; AI Reel Automation Matrix</title>
+  <meta name="referrer" content="no-referrer">
+  <title>AIVerse OS &middot; AI Reel Command Center</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -119,7 +119,6 @@ HTML_PAGE = """<!DOCTYPE html>
           animation: {
             'blob': 'blob 14s infinite',
             'shimmer': 'shimmer 2.5s infinite linear',
-            'float': 'float 6s ease-in-out infinite',
             'pulse-glow': 'pulse-glow 2s infinite ease-in-out',
             'spin-slow': 'spin 12s linear infinite'
           },
@@ -133,10 +132,6 @@ HTML_PAGE = """<!DOCTYPE html>
               '0%': { transform: 'translateX(-100%)' },
               '100%': { transform: 'translateX(200%)' }
             },
-            float: {
-              '0%, 100%': { transform: 'translateY(0)' },
-              '50%': { transform: 'translateY(-8px)' }
-            },
             'pulse-glow': {
               '0%, 100%': { opacity: '1', filter: 'drop-shadow(0 0 16px rgba(16, 185, 129, 0.7))' },
               '50%': { opacity: '0.4', filter: 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.1))' }
@@ -148,23 +143,22 @@ HTML_PAGE = """<!DOCTYPE html>
   </script>
 
   <style>
-    /* Custom Background Grid Pattern */
     .bg-grid {
       background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
       background-size: 28px 28px;
     }
     .glass-card {
-      background: rgba(14, 19, 31, 0.72);
+      background: rgba(14, 19, 31, 0.75);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
     .glass-card:hover {
       border-color: rgba(16, 185, 129, 0.35);
       box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.12);
     }
     .glass-header {
-      background: rgba(7, 9, 14, 0.85);
+      background: rgba(7, 9, 14, 0.88);
       backdrop-filter: blur(24px);
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
@@ -179,6 +173,9 @@ HTML_PAGE = """<!DOCTYPE html>
       background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
       transform: translateX(-100%);
       animation: shimmer 3s infinite;
+    }
+    .phone-frame {
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(16, 185, 129, 0.2);
     }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #07090e; }
@@ -200,7 +197,7 @@ HTML_PAGE = """<!DOCTYPE html>
   <header class="glass-header sticky top-0 z-40 transition-all duration-300">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between relative z-10">
       
-      <!-- Brand Logo & Live Pulse -->
+      <!-- Brand Logo -->
       <div class="flex items-center space-x-4">
         <div class="relative group cursor-pointer">
           <div class="absolute -inset-1 bg-gradient-to-r from-neonEmerald to-neonCyan rounded-2xl blur opacity-70 group-hover:opacity-100 transition duration-300"></div>
@@ -213,7 +210,7 @@ HTML_PAGE = """<!DOCTYPE html>
             <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-neonEmerald bg-clip-text text-transparent">
               AIVerse OS
             </h1>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neonCyan/10 text-neonCyan border border-neonCyan/30 font-bold uppercase tracking-wider">v3.0 Live</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neonCyan/10 text-neonCyan border border-neonCyan/30 font-bold uppercase tracking-wider">v3.5 Video Preview</span>
           </div>
           <p class="text-xs text-slate-400 flex items-center space-x-1.5 mt-0.5">
             <span class="text-slate-300 font-medium">@aiverse.agent</span>
@@ -226,7 +223,6 @@ HTML_PAGE = """<!DOCTYPE html>
       <!-- Live Clock & Top Controls -->
       <div class="flex items-center space-x-4">
         
-        <!-- Live IST Clock Widget -->
         <div class="hidden md:flex items-center space-x-3 px-4 py-2 rounded-xl bg-panel/80 border border-panelBorder/80 font-mono text-xs">
           <div class="flex items-center space-x-1.5 text-cyan-400">
             <i class="fa-regular fa-clock"></i>
@@ -240,7 +236,7 @@ HTML_PAGE = """<!DOCTYPE html>
         </div>
 
         <!-- Master Switch (Pause / Resume) -->
-        <button onclick="toggleGlobalAutomation()" id="btnGlobalToggle" class="px-4 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all duration-300 shadow-lg transform hover:scale-[1.03] active:scale-[0.97] bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 hover:shadow-amber-500/10">
+        <button onclick="toggleGlobalAutomation()" id="btnGlobalToggle" class="px-4 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all duration-300 shadow-lg transform hover:scale-[1.03] active:scale-[0.97] bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20">
           <i class="fa-solid fa-pause"></i>
           <span>Pause Automation</span>
         </button>
@@ -291,12 +287,109 @@ HTML_PAGE = """<!DOCTYPE html>
   <!-- Main Content Container -->
   <main class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 space-y-8 w-full">
 
-    <!-- Top Futuristic Stat Cards -->
+    <!-- HERO SECTION: LATEST GENERATED REEL PLAYER -->
+    <div class="glass-card rounded-3xl p-6 sm:p-8 border border-white/10 relative overflow-hidden">
+      <div class="absolute -right-20 -top-20 w-80 h-80 bg-neonEmerald/10 rounded-full blur-3xl pointer-events-none"></div>
+      
+      <div class="flex flex-col lg:flex-row items-center gap-8">
+        
+        <!-- Interactive 9:16 Mobile Video Frame -->
+        <div class="w-full max-w-[280px] sm:max-w-[300px] flex-shrink-0">
+          <div class="phone-frame relative aspect-[9/16] rounded-[2.5rem] bg-darker p-3 border-4 border-slate-800/90 shadow-2xl overflow-hidden group">
+            
+            <!-- Phone Speaker Notch -->
+            <div class="absolute top-4 left-1/2 -translate-x-1/2 w-20 h-4 bg-slate-800 rounded-full z-20 flex items-center justify-center">
+              <div class="w-3 h-3 rounded-full bg-slate-900 mr-2"></div>
+              <div class="w-8 h-1.5 rounded-full bg-slate-900"></div>
+            </div>
+
+            <!-- HTML5 Video Player -->
+            <div class="w-full h-full rounded-[2rem] overflow-hidden bg-black relative">
+              <video id="heroVideoPlayer" class="w-full h-full object-cover" controls playsinline loop preload="metadata" poster="">
+                <source id="heroVideoSource" src="" type="video/mp4">
+                Your browser does not support HTML5 video.
+              </video>
+
+              <!-- Floating Live Tag -->
+              <div class="absolute top-4 left-4 z-10 pointer-events-none">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-pink-500/90 text-white tracking-wider shadow">
+                  <i class="fa-brands fa-instagram mr-1"></i> REEL PREVIEW
+                </span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Reel Metadata & Controls -->
+        <div class="flex-1 flex flex-col justify-between space-y-5 text-left w-full">
+          <div>
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <span class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-neonEmerald/10 text-neonEmerald border border-neonEmerald/30">
+                <i class="fa-solid fa-circle-check mr-1.5"></i> LATEST PUBLISHED REEL
+              </span>
+              <span id="heroReelDate" class="text-xs font-mono text-slate-400">Published Today</span>
+            </div>
+
+            <h2 id="heroReelTitle" class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Loading latest reel...
+            </h2>
+
+            <div class="mt-4 p-4 rounded-2xl bg-darker/60 border border-white/5">
+              <p class="text-xs font-mono text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Caption & Hook Script</span>
+                <button onclick="copyHeroCaption()" class="text-neonCyan hover:underline text-[11px] normal-case">
+                  <i class="fa-regular fa-copy mr-1"></i> Copy Caption
+                </button>
+              </p>
+              <p id="heroReelCaption" class="text-xs text-slate-300 leading-relaxed font-sans line-clamp-4">
+                Querying latest reel from Instagram Graph API...
+              </p>
+            </div>
+          </div>
+
+          <!-- Feature Specs Matrix -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="p-3 rounded-xl bg-panel/60 border border-white/5">
+              <span class="text-[10px] font-mono text-slate-500 block uppercase">Voice Model</span>
+              <span class="text-xs font-bold text-white mt-0.5 block">Gemini Charon</span>
+            </div>
+            <div class="p-3 rounded-xl bg-panel/60 border border-white/5">
+              <span class="text-[10px] font-mono text-slate-500 block uppercase">Language</span>
+              <span class="text-xs font-bold text-white mt-0.5 block">Hinglish AI</span>
+            </div>
+            <div class="p-3 rounded-xl bg-panel/60 border border-white/5">
+              <span class="text-[10px] font-mono text-slate-500 block uppercase">Animation</span>
+              <span class="text-xs font-bold text-neonEmerald mt-0.5 block">2D Character Sync</span>
+            </div>
+            <div class="p-3 rounded-xl bg-panel/60 border border-white/5">
+              <span class="text-[10px] font-mono text-slate-500 block uppercase">Platforms</span>
+              <span class="text-xs font-bold text-neonCyan mt-0.5 block">IG Reels + YouTube</span>
+            </div>
+          </div>
+
+          <!-- Direct Watch Buttons -->
+          <div class="flex flex-wrap items-center gap-3 pt-2">
+            <a id="heroInstagramLink" href="https://www.instagram.com/aiverse.agent/" target="_blank" class="px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white shadow-lg shadow-pink-900/30 transition flex items-center space-x-2">
+              <i class="fa-brands fa-instagram text-sm"></i>
+              <span>Watch on Instagram</span>
+            </a>
+            <a id="heroDownloadLink" href="#" download="aiverse_reel.mp4" target="_blank" class="px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center space-x-2">
+              <i class="fa-solid fa-download text-sm text-neonEmerald"></i>
+              <span>Download MP4</span>
+            </a>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Quick Stats Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       
-      <!-- Card 1: Instagram Account -->
+      <!-- Card 1: Account -->
       <div class="glass-card rounded-2xl p-6 relative overflow-hidden transition-all duration-300 group">
-        <div class="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 rounded-full blur-2xl group-hover:bg-pink-500/20 transition"></div>
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">Instagram Target</span>
           <div class="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-400">
@@ -320,7 +413,6 @@ HTML_PAGE = """<!DOCTYPE html>
 
       <!-- Card 2: YouTube Shorts -->
       <div class="glass-card rounded-2xl p-6 relative overflow-hidden transition-all duration-300 group">
-        <div class="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-2xl group-hover:bg-red-500/20 transition"></div>
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">YouTube Shorts</span>
           <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400">
@@ -341,7 +433,6 @@ HTML_PAGE = """<!DOCTYPE html>
 
       <!-- Card 3: Next Scheduled Post -->
       <div class="glass-card rounded-2xl p-6 relative overflow-hidden transition-all duration-300 group">
-        <div class="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition"></div>
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">Next Slot Countdown</span>
           <div class="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400">
@@ -360,7 +451,6 @@ HTML_PAGE = """<!DOCTYPE html>
 
       <!-- Card 4: AI & Animation Engine -->
       <div class="glass-card rounded-2xl p-6 relative overflow-hidden transition-all duration-300 group">
-        <div class="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full blur-2xl group-hover:bg-violet-500/20 transition"></div>
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">Generation Matrix</span>
           <div class="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center text-violet-400">
@@ -456,15 +546,15 @@ HTML_PAGE = """<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- Live Published Reels Section (Visual Grid) -->
+    <!-- Live Published Reels Section (Visual Grid with In-Dashboard Play Buttons) -->
     <div class="glass-card rounded-3xl p-6 sm:p-8 border border-white/10">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10">
         <div>
           <h2 class="text-lg font-bold text-white flex items-center space-x-2.5">
             <i class="fa-brands fa-instagram text-pink-500 text-xl"></i>
-            <span>Live Published Content Showcase</span>
+            <span>Published Reels Gallery</span>
           </h2>
-          <p class="text-xs text-slate-400 mt-1">Real-time content currently published on @aiverse.agent</p>
+          <p class="text-xs text-slate-400 mt-1">Click any reel to play directly inside the dashboard</p>
         </div>
         <div class="flex items-center space-x-3">
           <a href="https://www.instagram.com/aiverse.agent/" target="_blank" class="px-4 py-2 rounded-xl text-xs font-bold bg-pink-500/10 text-pink-400 border border-pink-500/30 hover:bg-pink-500/20 transition flex items-center space-x-1.5">
@@ -475,10 +565,10 @@ HTML_PAGE = """<!DOCTYPE html>
       </div>
 
       <!-- Reels Grid -->
-      <div id="postsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+      <div id="postsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
         <div class="col-span-full py-16 text-center text-slate-500 text-sm">
           <i class="fa-solid fa-circle-notch fa-spin text-neonEmerald text-2xl mr-2"></i>
-          <p class="mt-2 font-mono text-xs text-slate-400">Querying Meta Graph API for reels...</p>
+          <p class="mt-2 font-mono text-xs text-slate-400">Loading reels gallery...</p>
         </div>
       </div>
     </div>
@@ -552,6 +642,60 @@ HTML_PAGE = """<!DOCTYPE html>
 
   </main>
 
+  <!-- POPUP VIDEO THEATER MODAL -->
+  <div id="videoModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl hidden transition-all duration-300">
+    <div class="glass-card w-full max-w-4xl rounded-3xl border border-neonEmerald/40 overflow-hidden shadow-2xl flex flex-col lg:flex-row max-h-[90vh]">
+      
+      <!-- Video Container -->
+      <div class="w-full lg:w-[360px] bg-black flex items-center justify-center relative p-3">
+        <div class="w-full max-w-[280px] aspect-[9/16] rounded-2xl overflow-hidden bg-darker border-2 border-slate-800 shadow-xl relative">
+          <video id="modalVideoPlayer" class="w-full h-full object-cover" controls playsinline autoplay loop>
+            <source id="modalVideoSource" src="" type="video/mp4">
+          </video>
+        </div>
+      </div>
+
+      <!-- Video Details & Actions -->
+      <div class="p-6 flex-1 flex flex-col justify-between bg-panel/90 text-left overflow-y-auto">
+        <div>
+          <div class="flex items-center justify-between pb-3 border-b border-white/10">
+            <span class="text-xs font-mono font-bold text-neonEmerald flex items-center">
+              <span class="w-2 h-2 rounded-full bg-neonEmerald mr-2 animate-ping"></span>
+              REEL PREVIEW THEATER
+            </span>
+            <button onclick="closeVideoModal()" class="text-slate-400 hover:text-white transition p-1">
+              <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+          </div>
+
+          <h3 id="modalVideoTitle" class="text-xl font-bold text-white mt-4">Reel Title</h3>
+          <p id="modalVideoDate" class="text-xs text-slate-400 font-mono mt-1">Date</p>
+
+          <div class="mt-4 p-4 rounded-xl bg-darker/60 border border-white/5 text-xs text-slate-300 leading-relaxed max-h-48 overflow-y-auto" id="modalVideoCaption">
+            Full Caption
+          </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center space-x-2">
+            <a id="modalInstagramLink" href="#" target="_blank" class="px-4 py-2 rounded-xl text-xs font-bold bg-pink-500 hover:bg-pink-600 text-white transition flex items-center space-x-1.5 shadow">
+              <i class="fa-brands fa-instagram text-sm"></i>
+              <span>Open on Instagram</span>
+            </a>
+            <a id="modalDownloadLink" href="#" download="aiverse_reel.mp4" target="_blank" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-download text-xs text-neonEmerald"></i>
+              <span>Download</span>
+            </a>
+          </div>
+          <button onclick="closeVideoModal()" class="text-xs text-slate-400 hover:text-white font-mono">
+            Close [ESC]
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Live Terminal Log Modal -->
   <div id="logModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden transition-all duration-300">
     <div class="glass-card w-full max-w-4xl rounded-3xl border border-neonCyan/40 overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
@@ -572,7 +716,6 @@ HTML_PAGE = """<!DOCTYPE html>
         </button>
       </div>
 
-      <!-- Terminal Output Body -->
       <div class="p-6 bg-darker flex-1 overflow-y-auto font-mono text-xs text-emerald-400 leading-relaxed whitespace-pre-wrap selection:bg-emerald-500 selection:text-black" id="terminalOutput">
         Loading runner stream...
       </div>
@@ -594,11 +737,10 @@ HTML_PAGE = """<!DOCTYPE html>
     let isGlobalActive = true;
     let activeRunId = null;
     let currentViewingRunId = null;
+    let allPostsData = [];
 
-    // Clock & Countdown Updater
     function updateClock() {
       const now = new Date();
-      // IST is UTC + 5:30
       const istTime = new Date(now.getTime() + (now.getTimezoneOffset() + 330) * 60000);
       
       const clockEl = document.getElementById('liveClock');
@@ -606,7 +748,6 @@ HTML_PAGE = """<!DOCTYPE html>
         clockEl.textContent = istTime.toLocaleTimeString('en-US', { hour12: false }) + ' IST';
       }
 
-      // Calculate Countdown to next slot (08:00 or 19:00 IST)
       const currentHours = istTime.getHours();
       const currentMinutes = istTime.getMinutes();
       const currentSeconds = istTime.getSeconds();
@@ -615,7 +756,7 @@ HTML_PAGE = """<!DOCTYPE html>
       if (currentHours < 8) {
         targetHour = 8;
       } else if (currentHours >= 19) {
-        targetHour = 32; // 08:00 tomorrow
+        targetHour = 32;
       }
 
       const totalCurrentSec = currentHours * 3600 + currentMinutes * 60 + currentSeconds;
@@ -757,52 +898,75 @@ HTML_PAGE = """<!DOCTYPE html>
         return;
       }
 
-      grid.innerHTML = posts.map(p => {
+      allPostsData = posts;
+
+      // Update Hero Section with the Latest Reel
+      const latest = posts[0];
+      if (latest) {
+        const lines = (latest.caption || 'New AIVerse Reel').split('\\n');
+        const heroTitle = lines[0] || 'AIVerse Masterclass Reel';
+        const heroCaption = lines.slice(1).join('\\n').trim() || latest.caption;
+        const dateStr = new Date(latest.timestamp).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        document.getElementById('heroReelTitle').textContent = heroTitle;
+        document.getElementById('heroReelDate').textContent = `Published on ${dateStr}`;
+        document.getElementById('heroReelCaption').textContent = heroCaption;
+        document.getElementById('heroInstagramLink').href = latest.permalink;
+
+        const videoPlayer = document.getElementById('heroVideoPlayer');
+        const videoSource = document.getElementById('heroVideoSource');
+        const downloadLink = document.getElementById('heroDownloadLink');
+
+        if (latest.media_url) {
+          videoSource.src = latest.media_url;
+          videoPlayer.poster = latest.thumbnail_url || '';
+          videoPlayer.load();
+          downloadLink.href = latest.media_url;
+        }
+      }
+
+      // Render Gallery
+      grid.innerHTML = posts.map((p, idx) => {
         const thumb = p.thumbnail_url || p.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80';
         const dateStr = new Date(p.timestamp).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         const captionLines = (p.caption || 'New AIVerse Reel').split('\\n');
         const title = captionLines[0] || 'AIVerse Reel';
-        const preview = captionLines.slice(1, 3).join(' ').trim();
 
         return `
           <div class="glass-card rounded-2xl overflow-hidden border border-white/10 hover:border-pink-500/40 transition-all duration-500 flex flex-col group transform hover:-translate-y-1 shadow-lg">
             
-            <div class="relative aspect-[9/13] bg-darker overflow-hidden">
+            <div class="relative aspect-[9/13] bg-darker overflow-hidden cursor-pointer" onclick="openVideoModal(${idx})">
               <img src="${thumb}" alt="Reel thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
               <div class="absolute inset-0 bg-gradient-to-t from-darker via-transparent to-black/20 opacity-90"></div>
               
-              <!-- Platform Pill -->
               <div class="absolute top-3 left-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center space-x-1.5 shadow-lg">
                 <i class="fa-brands fa-instagram"></i>
                 <span>REEL</span>
               </div>
 
-              <!-- Timestamp -->
               <div class="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-slate-300 text-[10px] font-mono px-2 py-0.5 rounded-full border border-white/10">
                 ${dateStr}
               </div>
 
-              <!-- Floating Watch Reel Center Overlay -->
-              <a href="${p.permalink}" target="_blank" class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-[2px]">
-                <div class="w-14 h-14 rounded-full bg-pink-500/90 text-white flex items-center justify-center text-xl shadow-2xl transform scale-75 group-hover:scale-100 transition duration-300">
+              <!-- Animated Play Center Button -->
+              <div class="absolute inset-0 flex items-center justify-center opacity-85 group-hover:opacity-100 transition-opacity duration-300 bg-black/20 group-hover:bg-black/40 backdrop-blur-[1px]">
+                <div class="w-14 h-14 rounded-full bg-pink-500/90 text-white flex items-center justify-center text-xl shadow-2xl transform scale-90 group-hover:scale-110 transition duration-300">
                   <i class="fa-solid fa-play ml-1"></i>
                 </div>
-              </a>
+              </div>
             </div>
 
-            <div class="p-5 flex-1 flex flex-col justify-between bg-panel/40">
+            <div class="p-4 flex-1 flex flex-col justify-between bg-panel/40">
               <div>
-                <h3 class="text-sm font-extrabold text-white group-hover:text-pink-400 transition line-clamp-1">${title}</h3>
-                <p class="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">${preview || 'Hinglish AI Concept Video'}</p>
+                <h3 class="text-xs font-extrabold text-white group-hover:text-pink-400 transition line-clamp-2">${title}</h3>
               </div>
 
-              <div class="mt-4 pt-3.5 border-t border-white/5 flex items-center justify-between">
-                <span class="text-[10px] font-mono font-bold text-neonEmerald flex items-center">
-                  <span class="w-1.5 h-1.5 rounded-full bg-neonEmerald mr-1.5 animate-pulse"></span>
-                  PUBLISHED LIVE
-                </span>
-                <a href="${p.permalink}" target="_blank" class="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-pink-500/20 text-slate-200 hover:text-pink-300 text-xs font-bold border border-white/10 hover:border-pink-500/30 transition flex items-center space-x-1.5">
-                  <span>Watch</span>
+              <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+                <button onclick="openVideoModal(${idx})" class="text-[11px] font-bold text-neonEmerald hover:underline flex items-center space-x-1">
+                  <i class="fa-solid fa-play text-[9px]"></i>
+                  <span>Watch Reel</span>
+                </button>
+                <a href="${p.permalink}" target="_blank" class="text-slate-400 hover:text-white text-xs">
                   <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                 </a>
               </div>
@@ -813,6 +977,46 @@ HTML_PAGE = """<!DOCTYPE html>
       }).join('');
     }
 
+    function openVideoModal(idx) {
+      const p = allPostsData[idx];
+      if (!p) return;
+
+      const lines = (p.caption || 'AIVerse Reel').split('\\n');
+      const title = lines[0] || 'AIVerse Reel';
+      const caption = lines.slice(1).join('\\n').trim() || p.caption;
+      const dateStr = new Date(p.timestamp).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+      document.getElementById('modalVideoTitle').textContent = title;
+      document.getElementById('modalVideoDate').textContent = `Published on ${dateStr}`;
+      document.getElementById('modalVideoCaption').textContent = caption;
+      document.getElementById('modalInstagramLink').href = p.permalink;
+
+      const modalPlayer = document.getElementById('modalVideoPlayer');
+      const modalSource = document.getElementById('modalVideoSource');
+      const downloadLink = document.getElementById('modalDownloadLink');
+
+      if (p.media_url) {
+        modalSource.src = p.media_url;
+        modalPlayer.load();
+        modalPlayer.play().catch(() => {});
+        downloadLink.href = p.media_url;
+      }
+
+      document.getElementById('videoModal').classList.remove('hidden');
+    }
+
+    function closeVideoModal() {
+      const modalPlayer = document.getElementById('modalVideoPlayer');
+      modalPlayer.pause();
+      document.getElementById('videoModal').classList.add('hidden');
+    }
+
+    function copyHeroCaption() {
+      const cap = document.getElementById('heroReelCaption').textContent;
+      navigator.clipboard.writeText(cap);
+      showToast('Caption copied to clipboard!', true);
+    }
+
     async function triggerAction(actionName) {
       showToast(`Initiating: ${actionName}...`, true);
       const res = await fetchJSON('/api/action/trigger', {
@@ -821,10 +1025,10 @@ HTML_PAGE = """<!DOCTYPE html>
         body: JSON.stringify({ action: actionName })
       });
       if (res && res.ok) {
-        showToast(`Action dispatched to GitHub Actions runner!`, true);
+        showToast(`Action dispatched to GitHub runner!`, true);
         setTimeout(refreshAll, 1500);
       } else {
-        showToast(`Failed to trigger: ${res ? res.message : 'Error'}`, false);
+        showToast(`Failed: ${res ? res.message : 'Error'}`, false);
       }
     }
 
@@ -898,6 +1102,14 @@ HTML_PAGE = """<!DOCTYPE html>
       currentViewingRunId = null;
     }
 
+    // Keyboard shortcut ESC to close modals
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeVideoModal();
+        closeLogModal();
+      }
+    });
+
     async function refreshAll() {
       const icon = document.getElementById('refreshIcon');
       if (icon) icon.classList.add('fa-spin');
@@ -940,7 +1152,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(runs)
 
         elif url.path == "/api/posts":
-            posts = get_instagram_posts(6)
+            posts = get_instagram_posts(8)
             self._send_json(posts)
 
         elif url.path == "/api/log":
@@ -1012,13 +1224,9 @@ def run_server():
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(server_address, DashboardHandler) as httpd:
         print(f"\\n==================================================")
-        print(f"🎛️  AIVerse OS Command Center is LIVE!")
+        print(f"🎛️  AIVerse OS Command Center with Video Preview is LIVE!")
         print(f"👉 Open in your browser: http://localhost:{PORT}")
         print(f"==================================================\\n")
-        try:
-            webbrowser.open(f"http://localhost:{PORT}")
-        except Exception:
-            pass
         httpd.serve_forever()
 
 if __name__ == "__main__":
