@@ -150,11 +150,18 @@
           </div>
         </div>
 
-        <!-- GitHub Action Link -->
-        <a href="https://github.com/PranavNayee/aiverse-bot/actions" target="_blank" class="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all duration-300 shadow-lg bg-panel hover:bg-slate-800 text-white border border-white/10">
-          <i class="fa-brands fa-github text-sm text-neonEmerald"></i>
-          <span class="hidden sm:inline">Actions</span>
-        </a>
+        <!-- Master Switch (Pause / Resume) -->
+        <button onclick="toggleGlobalAutomation()" id="btnGlobalToggle" class="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 sm:space-x-2 transition-all duration-300 shadow-lg transform active:scale-95 bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20" title="Pause or Resume Automated Bot">
+          <i id="globalToggleIcon" class="fa-solid fa-pause text-xs"></i>
+          <span class="hidden sm:inline" id="globalToggleText">Pause Bot</span>
+          <span class="sm:hidden" id="globalToggleTextMobile">Pause</span>
+        </button>
+
+        <!-- 1-Tap Trigger Token Settings Button -->
+        <button onclick="openTokenModal()" id="btnTokenStatus" class="px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all duration-300 shadow-lg bg-panel hover:bg-slate-800 text-neonEmerald border border-neonEmerald/30" title="1-Tap Token Setup">
+          <i class="fa-solid fa-key text-xs"></i>
+          <span class="hidden sm:inline">1-Tap Key</span>
+        </button>
 
         <!-- Refresh Button -->
         <button onclick="refreshAll()" class="w-9 sm:w-10 h-9 sm:h-10 rounded-xl bg-panel border border-panelBorder flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-600 transition-all transform active:scale-90" title="Refresh Feed">
@@ -179,8 +186,12 @@
         </div>
       </div>
       <div class="flex items-center space-x-2">
+        <button onclick="cancelLiveActiveRun()" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/15 text-red-300 border border-red-500/30 hover:bg-red-500/25 transition flex items-center space-x-1 shadow">
+          <i class="fa-solid fa-stop text-[10px]"></i>
+          <span>Stop Run</span>
+        </button>
         <a id="activeRunLink" href="https://github.com/PranavNayee/aiverse-bot/actions" target="_blank" class="px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/20 transition flex items-center space-x-1">
-          <span>View on GitHub</span>
+          <span>Log</span>
           <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
         </a>
       </div>
@@ -390,9 +401,10 @@
           <p class="text-xs text-slate-400 mt-0.5">Trigger actions into GitHub Actions runner</p>
         </div>
         <div>
-          <a href="https://github.com/settings/tokens?type=beta" target="_blank" class="text-[11px] text-neonCyan hover:underline font-mono">
-            <i class="fa-solid fa-key mr-1"></i> Optional: Set GitHub PAT for 1-tap dispatch
-          </a>
+          <button onclick="openTokenModal()" class="text-[11px] text-neonCyan hover:underline font-mono inline-flex items-center space-x-1">
+            <i class="fa-solid fa-key text-[10px]"></i>
+            <span>Configure 1-Tap Direct Trigger Key</span>
+          </button>
         </div>
       </div>
 
@@ -773,6 +785,57 @@
     </div>
   </div>
 
+  <!-- 1-TAP ACTIVATION TOKEN MODAL -->
+  <div id="tokenModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl hidden transition-all duration-300">
+    <div class="glass-card w-full max-w-md rounded-3xl p-6 border border-neonEmerald/40 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-3 border-b border-white/10">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-lg bg-neonEmerald/10 flex items-center justify-center text-neonEmerald">
+            <i class="fa-solid fa-bolt text-sm"></i>
+          </div>
+          <h3 class="text-base font-bold text-white">Direct 1-Tap Trigger Key</h3>
+        </div>
+        <button onclick="closeTokenModal()" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300 mt-3 leading-relaxed">
+        To trigger reels and actions directly from your phone with <strong class="text-neonEmerald">zero redirection</strong>, paste your GitHub token below once:
+      </p>
+
+      <div class="mt-4">
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-[10px] font-mono uppercase tracking-wider text-slate-400">GitHub Access Token:</label>
+          <button type="button" onclick="pasteFromClipboard()" class="text-[10px] text-neonCyan hover:underline font-mono flex items-center space-x-1">
+            <i class="fa-solid fa-paste"></i>
+            <span>Paste from clipboard</span>
+          </button>
+        </div>
+        <div class="relative">
+          <input id="inputGhToken" type="password" placeholder="gho_... or ghp_..." class="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-darker border border-panelBorder focus:border-neonEmerald focus:outline-none text-xs font-mono text-white">
+          <button type="button" onclick="toggleTokenVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs">
+            <i id="tokenEyeIcon" class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-5 flex items-center space-x-2">
+        <button onclick="saveTokenAndExecute()" class="flex-1 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-neonEmerald to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-dark font-extrabold shadow-lg shadow-neonEmerald/20 transition transform active:scale-95 flex items-center justify-center space-x-1.5">
+          <i class="fa-solid fa-bolt"></i>
+          <span>Save & Trigger Now</span>
+        </button>
+        <button onclick="clearSavedToken()" class="px-3 py-2.5 rounded-xl text-xs font-mono text-slate-400 hover:text-red-400 bg-white/5 border border-white/10" title="Clear Token">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </div>
+      
+      <p class="text-[10px] text-slate-500 font-mono mt-3 text-center">
+        Token is stored securely in your phone's browser only. Never sent to any third-party server.
+      </p>
+    </div>
+  </div>
+
   <footer class="relative z-10 border-t border-white/5 py-5 sm:py-6 text-center text-xs text-slate-500 font-mono px-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
     <span>AIVerse Automation Bot &middot; Multi-Agent Educational Reel Generator</span>
     <span class="hidden sm:inline">&middot;</span>
@@ -947,10 +1010,16 @@
       }
     }
 
+    let currentActiveRunId = null;
+    let pendingAction = null;
+    let isGlobalActive = true;
+
     async function loadLiveGitHubRuns() {
+      const pat = localStorage.getItem('gh_pat');
       const url = `https://api.github.com/repos/${REPO}/actions/runs?per_page=10`;
       try {
-        const res = await fetch(url);
+        const headers = pat ? { 'Authorization': `Bearer ${pat}` } : {};
+        const res = await fetch(url, { headers });
         const data = await res.json();
         const runs = data.workflow_runs || [];
 
@@ -991,10 +1060,12 @@
         }).join('');
 
         if (currentActive) {
+          currentActiveRunId = currentActive.id;
           activeRunName.textContent = `${currentActive.name} (#${currentActive.id})`;
           document.getElementById('activeRunLink').href = currentActive.html_url;
           activeBanner.classList.remove('hidden');
         } else {
+          currentActiveRunId = null;
           activeBanner.classList.add('hidden');
         }
 
@@ -1003,11 +1074,104 @@
       }
     }
 
+    function openTokenModal() {
+      const modal = document.getElementById('tokenModal');
+      const input = document.getElementById('inputGhToken');
+      const pat = localStorage.getItem('gh_pat') || '';
+      input.value = pat;
+      modal.classList.remove('hidden');
+      setTimeout(() => input.focus(), 150);
+    }
+
+    function closeTokenModal() {
+      document.getElementById('tokenModal').classList.add('hidden');
+    }
+
+    async function pasteFromClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          document.getElementById('inputGhToken').value = text.trim();
+          showToast('Pasted token from clipboard', true);
+        }
+      } catch (err) {
+        showToast('Please paste your token manually into the input box.', false);
+      }
+    }
+
+    function toggleTokenVisibility() {
+      const input = document.getElementById('inputGhToken');
+      const icon = document.getElementById('tokenEyeIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fa-solid fa-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'fa-solid fa-eye';
+      }
+    }
+
+    async function saveTokenAndExecute() {
+      const input = document.getElementById('inputGhToken');
+      const token = (input.value || '').trim();
+      if (!token) {
+        showToast('Please paste your GitHub access token', false);
+        return;
+      }
+      localStorage.setItem('gh_pat', token);
+      updateTokenBadge();
+      closeTokenModal();
+      showToast('1-Tap Token saved securely on this device!', true);
+
+      if (pendingAction) {
+        const act = pendingAction;
+        pendingAction = null;
+        if (act.type === 'dispatch') {
+          executeDispatch(act.workflowFile, act.inputs, token);
+        } else if (act.type === 'global_toggle') {
+          toggleGlobalAutomation();
+        } else if (act.type === 'cancel') {
+          cancelLiveActiveRun();
+        }
+      }
+    }
+
+    function clearSavedToken() {
+      localStorage.removeItem('gh_pat');
+      document.getElementById('inputGhToken').value = '';
+      updateTokenBadge();
+      closeTokenModal();
+      showToast('Token cleared from this device', true);
+    }
+
+    function updateTokenBadge() {
+      const pat = localStorage.getItem('gh_pat');
+      const btn = document.getElementById('btnTokenStatus');
+      if (btn) {
+        if (pat) {
+          btn.innerHTML = '<i class="fa-solid fa-shield-halved text-neonEmerald text-xs"></i><span class="hidden sm:inline">1-Tap Ready</span><span class="sm:hidden">Ready</span>';
+          btn.className = "px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all duration-300 shadow-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-neonEmerald border border-neonEmerald/40";
+        } else {
+          btn.innerHTML = '<i class="fa-solid fa-key text-amber-400 text-xs"></i><span class="hidden sm:inline">Setup 1-Tap</span><span class="sm:hidden">1-Tap</span>';
+          btn.className = "px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all duration-300 shadow-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/40";
+        }
+      }
+    }
+
     function dispatchLiveWorkflow(workflowFile, inputs = {}) {
       const pat = localStorage.getItem('gh_pat');
-      if (pat) {
-        showToast(`Dispatching ${workflowFile}...`, true);
-        fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflowFile}/dispatches`, {
+      if (!pat) {
+        pendingAction = { type: 'dispatch', workflowFile, inputs };
+        openTokenModal();
+        return;
+      }
+      executeDispatch(workflowFile, inputs, pat);
+    }
+
+    async function executeDispatch(workflowFile, inputs, pat) {
+      showToast(`Triggering ${workflowFile}...`, true);
+      try {
+        const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflowFile}/dispatches`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${pat}`,
@@ -1015,19 +1179,124 @@
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ ref: 'main', inputs: inputs })
-        }).then(res => {
-          if (res.ok) {
-            showToast('Workflow triggered on GitHub runner!', true);
-            setTimeout(refreshAll, 2000);
-          } else {
-            showToast('Trigger failed. Check token permissions.', false);
-          }
-        }).catch(e => showToast('Error triggering workflow', false));
-      } else {
-        // Direct GitHub Web UI fallback
-        showToast('Opening GitHub Actions trigger console...', true);
-        window.open(`https://github.com/${REPO}/actions/workflows/${workflowFile}`, '_blank');
+        });
+
+        if (res.status === 204 || res.ok) {
+          showToast('🚀 Workflow dispatched! Reel generation is running...', true);
+          setTimeout(refreshAll, 1500);
+          setTimeout(refreshAll, 4000);
+          setTimeout(refreshAll, 8000);
+        } else if (res.status === 401 || res.status === 403) {
+          showToast('⚠️ GitHub Token unauthorized. Please update token.', false);
+          pendingAction = { type: 'dispatch', workflowFile, inputs };
+          openTokenModal();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          showToast(`Trigger error: ${errData.message || res.statusText}`, false);
+        }
+      } catch (err) {
+        console.error("Workflow dispatch error:", err);
+        showToast('Network error triggering workflow', false);
       }
+    }
+
+    async function cancelLiveActiveRun() {
+      if (!currentActiveRunId) {
+        showToast('No active workflow run to stop', false);
+        return;
+      }
+      const pat = localStorage.getItem('gh_pat');
+      if (!pat) {
+        pendingAction = { type: 'cancel' };
+        openTokenModal();
+        return;
+      }
+      showToast(`Stopping workflow execution #${currentActiveRunId}...`, true);
+      try {
+        const res = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${currentActiveRunId}/cancel`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${pat}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        if (res.status === 202 || res.ok) {
+          showToast('Workflow execution cancelled!', true);
+          setTimeout(refreshAll, 2000);
+        } else {
+          showToast('Failed to cancel workflow run', false);
+        }
+      } catch (e) {
+        showToast('Network error stopping run', false);
+      }
+    }
+
+    async function toggleGlobalAutomation() {
+      const pat = localStorage.getItem('gh_pat');
+      if (!pat) {
+        pendingAction = { type: 'global_toggle' };
+        openTokenModal();
+        return;
+      }
+      const shouldEnable = !isGlobalActive;
+      const actionVerb = shouldEnable ? 'enable' : 'disable';
+      showToast(`${shouldEnable ? 'Resuming' : 'Pausing'} scheduled automations...`, true);
+
+      const workflows = ['daily.yml', 'post.yml', 'engage.yml', 'weekly.yml'];
+      try {
+        const promises = workflows.map(wf => 
+          fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${wf}/${actionVerb}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${pat}`,
+              'Accept': 'application/vnd.github.v3+json'
+            }
+          })
+        );
+        await Promise.all(promises);
+        isGlobalActive = shouldEnable;
+        updateGlobalToggleUI();
+        showToast(shouldEnable ? 'All automations resumed!' : 'All automations paused!', true);
+      } catch (e) {
+        showToast('Error changing automation status', false);
+      }
+    }
+
+    function updateGlobalToggleUI() {
+      const btn = document.getElementById('btnGlobalToggle');
+      const icon = document.getElementById('globalToggleIcon');
+      const text = document.getElementById('globalToggleText');
+      const textMob = document.getElementById('globalToggleTextMobile');
+      if (!btn) return;
+      if (isGlobalActive) {
+        if (icon) icon.className = 'fa-solid fa-pause text-xs';
+        if (text) text.textContent = 'Pause Bot';
+        if (textMob) textMob.textContent = 'Pause';
+        btn.className = 'px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 sm:space-x-2 transition-all duration-300 shadow-lg transform active:scale-95 bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20';
+      } else {
+        if (icon) icon.className = 'fa-solid fa-play text-xs';
+        if (text) text.textContent = 'Resume Bot';
+        if (textMob) textMob.textContent = 'Resume';
+        btn.className = 'px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 sm:space-x-2 transition-all duration-300 shadow-lg transform active:scale-95 bg-neonEmerald/10 text-neonEmerald border border-neonEmerald/30 hover:bg-neonEmerald/20';
+      }
+    }
+
+    function checkUrlToken() {
+      try {
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+          const params = new URLSearchParams(hash);
+          const urlKey = params.get('key') || params.get('token');
+          if (urlKey && urlKey.startsWith('gh')) {
+            localStorage.setItem('gh_pat', urlKey);
+            history.replaceState(null, '', window.location.pathname);
+            showToast('1-Tap Trigger Key activated on this device!', true);
+          }
+        }
+      } catch (e) {
+        console.log("URL token parse info:", e);
+      }
+      updateTokenBadge();
     }
 
     function openVideoModal(idx) {
@@ -1081,6 +1350,7 @@
       if (icon) icon.classList.remove('fa-spin');
     }
 
+    checkUrlToken();
     refreshAll();
     setInterval(refreshAll, 14000);
   </script>
