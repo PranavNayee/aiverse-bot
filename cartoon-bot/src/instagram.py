@@ -10,7 +10,15 @@ def _check(r):
     except Exception:
         raise RuntimeError(f"Instagram API non-JSON response {r.status_code}: {r.text[:200]}")
     if r.status_code != 200 or "error" in j:
-        raise RuntimeError(f"Instagram API error: {j.get('error', j)}")
+        err = j.get("error", j)
+        if isinstance(err, dict) and err.get("error_subcode") == 5258005:
+            msg = ("Meta API access is BLOCKED (code 200, subcode 5258005). "
+                   "This is a Meta account or app-level checkpoint/security restriction. "
+                   "Log in to https://developers.facebook.com/ to check for account confirmation, "
+                   "unusual activity banners, or generate a fresh access token.")
+            log("🚨 " + msg)
+            raise RuntimeError(f"Instagram API error (5258005): {msg}")
+        raise RuntimeError(f"Instagram API error: {err}")
     return j
 
 def check_token():

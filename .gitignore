@@ -11,6 +11,12 @@ build/
 # Test files
 test_*.py
 *_test.py
+!cartoon-bot/tests/*.py
+
+# Local secrets & ignored folders
+.env
+.env.*
+Sheru-bot/
 
 # Voice samples (keep in .gitignore, not in repo)
 voice_tests/

@@ -249,6 +249,16 @@ def run_lesson_generation():
         fresh_start()
     history = storage.get_json("history.json", [])
     pending = storage.get_json("pending.json", None)
+    if pending and pending.get("attempts", 0) >= publisher.MAX_ATTEMPTS and not force_new:
+        log(f"Previous queued reel for {pending.get('slot')} reached {pending.get('attempts')} failed attempts. Archiving it to avoid blocking new content.")
+        storage.put_json(f"failed_{pending.get('slot')}.json", pending)
+        storage.delete("pending.json")
+        pending = None
+    if pending and not post_now and not force_new and time.time() > float(pending.get("post_at", 0)) + 24 * 3600:
+        log(f"Pending reel for {pending.get('slot')} is over 24h stale. Archiving it.")
+        storage.put_json(f"stale_{pending.get('slot')}.json", pending)
+        storage.delete("pending.json")
+        pending = None
     if not post_now:
         slot = slots.upcoming_slot(done={h.get("slot") for h in history})
         key = slots.key(slot)

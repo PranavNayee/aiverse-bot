@@ -64,56 +64,97 @@ def _claim(slot_key):
 
 def publish(p, force=False):
     if p.get("attempts", 0) >= MAX_ATTEMPTS and not force:
-        log("Too many failed attempts; run 'Post approved reel' manually with force_post = true.")
+        log("Too many failed attempts; archiving stuck reel so subsequent slots are not blocked.")
+        storage.put_json(f"failed_{p.get('slot')}.json", p)
+        storage.delete("pending.json")
         return "gave_up"
+
     p = _claim(p.get("slot"))
     if not p:
         return "busy"
-    if instagram.already_posted(p["caption"]):
-        log("This reel is already on Instagram - not posting it again.")
-        _record(p, "already-posted")
-        storage.delete("pending.json")
-        return "duplicate"
+
+    # 1. Instagram Reel
+    media_id = None
+    ig_err = None
     try:
-        media_id = instagram.post_reel(p["video_url"], p["caption"], p.get("cover_url"))
-    except Exception:
-        err = traceback.format_exc(); log(err)
-        p["attempts"] = p.get("attempts", 0) + 1
-        p["status"] = "queued"; p.pop("claim", None)
-        storage.put_json("pending.json", p)
-        extra = ("\nI will retry automatically on the next run." if p["attempts"] < MAX_ATTEMPTS else
-                 "\nGiving up for now. Fix the problem, then run 'Post approved reel' with force_post = true.")
-        notify.text(f"❌ Instagram posting failed ({p['attempts']}/{MAX_ATTEMPTS}):\n{err[-1200:]}{extra}")
-        raise
+        if instagram.already_posted(p["caption"]):
+            log("This reel is already on Instagram - skipping IG re-post.")
+            media_id = "already-posted"
+        else:
+            media_id = instagram.post_reel(p["video_url"], p["caption"], p.get("cover_url"))
+            log("Instagram reel posted successfully:", media_id)
+    except Exception as e:
+        ig_err = traceback.format_exc()
+        log("Instagram post failed:\n", ig_err)
+
+    # 2. YouTube Shorts (independent of Instagram success)
     yt = ""
+    yt_id = None
     if youtube.enabled():
         try:
-            p["youtube_id"] = youtube.upload(p["video_url"], p["caption"], p.get("headline"), p.get("topic"),
-                                             re.findall(r"#\w+", p["caption"]))
-            youtube.add_to_playlist(p["youtube_id"], p.get("type"))
+            yt_id = youtube.upload(p["video_url"], p["caption"], p.get("headline"), p.get("topic"),
+                                   re.findall(r"#\w+", p["caption"]))
+            p["youtube_id"] = yt_id
+            youtube.add_to_playlist(yt_id, p.get("type"))
             if p.get("thumb_url"):
                 try:
                     import requests as rq
                     with open("/tmp/aiverse_thumb.jpg", "wb") as fh:
                         fh.write(rq.get(p["thumb_url"], timeout=60).content)
-                    youtube.set_thumbnail(p["youtube_id"], "/tmp/aiverse_thumb.jpg")
+                    youtube.set_thumbnail(yt_id, "/tmp/aiverse_thumb.jpg")
                 except Exception as e:
                     log("Thumbnail step skipped:", e)
-            yt = f"\n▶️ YouTube Short: https://youtube.com/shorts/{p['youtube_id']}"
+            yt = f"\n▶️ YouTube Short: https://youtube.com/shorts/{yt_id}"
+            log("YouTube Short posted successfully:", yt_id)
         except Exception as e:
             log("YouTube cross-post failed:", e)
             yt = f"\n⚠️ YouTube upload failed: {str(e)[:300]}"
+
+    # 3. Facebook Reel
     if facebook.enabled():
         try:
             p["fb_id"] = facebook.post_reel(p["video_url"], p["caption"])
             yt += "\n📘 Facebook Reel posted"
+            log("Facebook Reel posted successfully")
         except Exception as e:
             log("Facebook cross-post failed:", e)
             yt += f"\n⚠️ Facebook failed: {str(e)[:200]}"
-    _record(p, media_id)
-    storage.delete("pending.json")
-    notify.text(f"✅ Posted to Instagram ({slots.fmt(time.time())}): {p.get('topic', '')}{yt}")
-    return "posted"
+
+    # 4. Handle results: at least one platform succeeded
+    if media_id or yt_id:
+        _record(p, media_id or f"yt-{yt_id}")
+        storage.delete("pending.json")
+        status_lines = []
+        if media_id and media_id != "already-posted":
+            status_lines.append(f"✅ Posted to Instagram ({slots.fmt(time.time())}): {p.get('topic', '')}")
+        elif media_id == "already-posted":
+            status_lines.append(f"ℹ️ Reel was already on Instagram: {p.get('topic', '')}")
+        else:
+            status_lines.append(f"⚠️ Instagram post failed, but cross-posted successfully: {p.get('topic', '')}")
+            if ig_err:
+                short_err = ig_err.strip().splitlines()[-1][:200]
+                status_lines.append(f"IG issue: {short_err}")
+        if yt:
+            status_lines.append(yt)
+        notify.text("\n".join(status_lines))
+        return "posted"
+
+    # 5. All destinations failed: retry or archive
+    p["attempts"] = p.get("attempts", 0) + 1
+    p["status"] = "queued"
+    p.pop("claim", None)
+
+    if p["attempts"] < MAX_ATTEMPTS:
+        storage.put_json("pending.json", p)
+        err_msg = ig_err or "All posting destinations failed."
+        notify.text(f"❌ Posting failed ({p['attempts']}/{MAX_ATTEMPTS}):\n{err_msg[-600:]}\nWill retry automatically on next run.")
+        raise RuntimeError(f"Posting failed (attempt {p['attempts']}): {err_msg.strip().splitlines()[-1]}")
+    else:
+        storage.put_json(f"failed_{p.get('slot')}.json", p)
+        storage.delete("pending.json")
+        notify.text(f"❌ Giving up on reel {p.get('slot')} after {MAX_ATTEMPTS} failed attempts.\nArchived to avoid blocking the queue.")
+        log(f"Archived stuck reel to failed_{p.get('slot')}.json to unblock queue.")
+        return "gave_up"
 
 
 def run(force=False, wait=True):
