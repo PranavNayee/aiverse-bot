@@ -52,6 +52,7 @@ def _fetch_graph_hashtag_media(ig_user_id, token, hashtag_name):
         
     return mdata.get("data", [])
 
+
 def _clean_caption_topic(caption):
     """Extracts the first hook line or core topic from an Instagram caption."""
     lines = [line.strip() for line in caption.split("\n") if line.strip()]
@@ -68,6 +69,7 @@ def _clean_caption_topic(caption):
             return cleaned[:100]
     return lines[0][:80]
 
+
 def fetch():
     candidates = []
     ig_user_id = os.environ.get("IG_USER_ID", "").strip()
@@ -76,8 +78,6 @@ def fetch():
     # 1. Try official Instagram Graph API if credentials exist
     if ig_user_id and token:
         try:
-            # Query up to 2 hashtags per run to preserve Meta's rolling weekly limit (30/week)
-            # Pick by current day of year
             import datetime as dt
             day_idx = dt.datetime.now().timetuple().tm_yday
             active_tags = [FACT_HASHTAGS[day_idx % len(FACT_HASHTAGS)],
@@ -112,9 +112,20 @@ def fetch():
                             }
                         )
                         candidates.append(cand)
+                except urllib.error.HTTPError as he:
+                    # Parse Meta error details if possible
+                    err_msg = ""
+                    try:
+                        body = json.loads(he.read().decode())
+                        err_msg = body.get("error", {}).get("message", "")
+                    except Exception:
+                        err_msg = str(he)
+                    print(f"[trend_research.instagram_trends] Notice: Meta Graph API #{tag}: {err_msg or he}")
+                    print("[trend_research.instagram_trends] (Note: Hashtag search requires Meta 'Public Content Access' permission. Falling back to web reel signals.)")
+                    break  # Stop trying other tags this run to prevent log clutter
                 except Exception as e:
                     print(f"[trend_research.instagram_trends] Notice: Graph API hashtag #{tag} query: {e}")
-                    continue
+                    break
         except Exception as e:
             print(f"[trend_research.instagram_trends] Notice: Instagram Graph API search skipped: {e}")
 
