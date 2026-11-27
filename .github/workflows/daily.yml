@@ -27,7 +27,7 @@ on:
       content:
         description: "What to make"
         type: choice
-        options: [auto, lesson, trick, news, alert, photo, fun_fact]
+        options: [auto, trend, lesson, trick, news, alert, photo, fun_fact]
         default: auto
       fresh_start:
         description: "Restart the series at Lesson #1 (backs up and clears history + stats)"

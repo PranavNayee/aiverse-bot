@@ -17,7 +17,8 @@ PLAYLISTS = {"lesson": ("AI Course in Hindi - Lesson by Lesson", "AI aur Machine
              "weekly": ("This Week in AI (Hinglish)", "Har hafte ke saare AI lessons, tricks aur news ek video mein."),
              "alert": ("Saavdhan - Phone & App Safety Tips", "WhatsApp, Instagram, UPI aur phone ki safety settings - simple Hinglish mein."),
              "photo": ("AI Photo Prompts (ChatGPT & Gemini)", "Trending AI photo prompts - apni photo se banao!"),
-             "news": ("AI News in Hindi", "AI ki latest news - naye features aur tools, simple Hinglish mein.")}
+             "news": ("AI News in Hindi", "AI ki latest news - naye features aur tools, simple Hinglish mein."),
+             "trend": ("Did You Know? Facts (Hinglish)", "Amazing facts, science discoveries, and mysteries in simple Hinglish.")}
 
 
 def _lang():

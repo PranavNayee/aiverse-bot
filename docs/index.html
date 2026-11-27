@@ -426,75 +426,89 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mt-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mt-5">
         
         <!-- Action 1: Post Reel Now -->
-        <button onclick="dispatchLiveWorkflow('daily.yml', {post_now: 'true', force_new: 'true', dry_run: 'false'})" class="shimmer-btn p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white shadow-xl shadow-emerald-900/40 text-left transition-all duration-300 transform active:scale-95 group">
+        <button onclick="dispatchLiveWorkflow('daily.yml', {post_now: 'true', force_new: 'true', dry_run: 'false'})" class="shimmer-btn p-4 rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white shadow-xl shadow-emerald-900/40 text-left transition-all duration-300 transform active:scale-95 group">
           <div class="flex items-center justify-between">
-            <div class="w-10 sm:w-11 h-10 sm:h-11 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg">
+            <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white text-base">
               <i class="fa-solid fa-paper-plane"></i>
             </div>
-            <span class="text-[9px] font-bold uppercase tracking-wider bg-black/30 px-2 py-0.5 rounded-full border border-white/20">LIVE POST</span>
+            <span class="text-[9px] font-bold uppercase tracking-wider bg-black/30 px-2 py-0.5 rounded-full border border-white/20">LESSON</span>
           </div>
           <div class="mt-3">
-            <h3 class="font-extrabold text-sm sm:text-base">Post Reel Now</h3>
-            <p class="text-[11px] text-emerald-100/80 mt-0.5 leading-relaxed">Generates script, voice, 2D visuals & posts immediately</p>
+            <h3 class="font-extrabold text-xs sm:text-sm">Post Reel Now</h3>
+            <p class="text-[10px] text-emerald-100/80 mt-0.5 leading-relaxed line-clamp-2">Daily scheduled lesson, voice & 2D visuals posted immediately</p>
           </div>
         </button>
 
-        <!-- Action 2: Dry Run Preview -->
-        <button onclick="dispatchLiveWorkflow('daily.yml', {dry_run: 'true'})" class="p-4 sm:p-5 rounded-2xl bg-panel/90 hover:bg-slate-800/90 border border-panelBorder hover:border-cyan-500/50 text-white text-left transition-all duration-300 transform active:scale-95 group shadow-lg">
+        <!-- Action 2: Post Trending Reel -->
+        <button onclick="dispatchLiveWorkflow('daily.yml', {content: 'trend', post_now: 'true', force_new: 'true', dry_run: 'false'})" class="shimmer-btn p-4 rounded-2xl bg-gradient-to-br from-purple-600 via-pink-600 to-rose-600 text-white shadow-xl shadow-purple-900/40 text-left transition-all duration-300 transform active:scale-95 group">
           <div class="flex items-center justify-between">
-            <div class="w-10 sm:w-11 h-10 sm:h-11 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 text-lg">
+            <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white text-base">
+              <i class="fa-solid fa-fire-flame-curved"></i>
+            </div>
+            <span class="text-[9px] font-bold uppercase tracking-wider bg-black/30 px-2 py-0.5 rounded-full border border-white/20">TRENDING</span>
+          </div>
+          <div class="mt-3">
+            <h3 class="font-extrabold text-xs sm:text-sm">Post Trending Reel</h3>
+            <p class="text-[10px] text-purple-100/80 mt-0.5 leading-relaxed line-clamp-2">Discovers Indian viral trend & posts verified curiosity reel</p>
+          </div>
+        </button>
+
+        <!-- Action 3: Dry Run Preview -->
+        <button onclick="dispatchLiveWorkflow('daily.yml', {dry_run: 'true'})" class="p-4 rounded-2xl bg-panel/90 hover:bg-slate-800/90 border border-panelBorder hover:border-cyan-500/50 text-white text-left transition-all duration-300 transform active:scale-95 group shadow-lg">
+          <div class="flex items-center justify-between">
+            <div class="w-9 h-9 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 text-base">
               <i class="fa-solid fa-flask-vial"></i>
             </div>
             <span class="text-[9px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded-full border border-cyan-500/30">TEST</span>
           </div>
           <div class="mt-3">
-            <h3 class="font-extrabold text-sm sm:text-base">Dry-Run Preview</h3>
-            <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">Renders complete MP4 video as artifact without posting</p>
+            <h3 class="font-extrabold text-xs sm:text-sm">Dry-Run Preview</h3>
+            <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed line-clamp-2">Renders complete MP4 video as artifact without posting</p>
           </div>
         </button>
 
-        <!-- Action 3: Pre-Flight Check -->
-        <button onclick="dispatchLiveWorkflow('check.yml')" class="p-4 sm:p-5 rounded-2xl bg-panel/90 hover:bg-slate-800/90 border border-panelBorder hover:border-violet-500/50 text-white text-left transition-all duration-300 transform active:scale-95 group shadow-lg">
+        <!-- Action 4: Pre-Flight Check -->
+        <button onclick="dispatchLiveWorkflow('check.yml')" class="p-4 rounded-2xl bg-panel/90 hover:bg-slate-800/90 border border-panelBorder hover:border-violet-500/50 text-white text-left transition-all duration-300 transform active:scale-95 group shadow-lg">
           <div class="flex items-center justify-between">
-            <div class="w-10 sm:w-11 h-10 sm:h-11 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 text-lg">
+            <div class="w-9 h-9 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 text-base">
               <i class="fa-solid fa-stethoscope"></i>
             </div>
             <span class="text-[9px] font-bold uppercase tracking-wider bg-violet-500/10 text-violet-400 px-2 py-0.5 rounded-full border border-violet-500/30">CHECK</span>
           </div>
           <div class="mt-3">
-            <h3 class="font-extrabold text-sm sm:text-base">Pre-Flight Check</h3>
-            <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">Verifies Meta token, Gemini voice quota, Supabase & fonts</p>
+            <h3 class="font-extrabold text-xs sm:text-sm">Pre-Flight Check</h3>
+            <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed line-clamp-2">Verifies Meta token, Gemini voice quota, Supabase & fonts</p>
           </div>
         </button>
 
-        <!-- Action 4: Auto-Engagement Loop -->
-        <button onclick="dispatchLiveWorkflow('engage.yml')" class="p-4 sm:p-5 rounded-2xl bg-panel/90 hover:bg-slate-800/90 border border-panelBorder hover:border-amber-500/50 text-white text-left transition-all duration-300 transform active:scale-95 group shadow-lg">
+        <!-- Action 5: Auto-Engagement Loop -->
+        <button onclick="dispatchLiveWorkflow('engage.yml')" class="p-4 rounded-2xl bg-panel/90 hover:bg-slate-800/90 border border-panelBorder hover:border-amber-500/50 text-white text-left transition-all duration-300 transform active:scale-95 group shadow-lg">
           <div class="flex items-center justify-between">
-            <div class="w-10 sm:w-11 h-10 sm:h-11 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 text-lg">
+            <div class="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 text-base">
               <i class="fa-solid fa-comments"></i>
             </div>
             <span class="text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30">ENGAGE</span>
           </div>
           <div class="mt-3">
-            <h3 class="font-extrabold text-sm sm:text-base">Auto-Reply & Learn</h3>
-            <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">Sends prompts to commenters & updates hook analytics</p>
+            <h3 class="font-extrabold text-xs sm:text-sm">Auto-Reply & Learn</h3>
+            <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed line-clamp-2">Sends prompts to commenters & updates hook analytics</p>
           </div>
         </button>
 
-        <!-- Action 5: Cancel / Abort Run -->
-        <button onclick="cancelLiveActiveRun()" id="cardCancelAction" class="p-4 sm:p-5 rounded-2xl bg-panel/90 hover:bg-slate-800/90 border border-panelBorder hover:border-red-500/50 text-white text-left transition-all duration-300 transform active:scale-95 group shadow-lg">
+        <!-- Action 6: Cancel / Abort Run -->
+        <button onclick="cancelLiveActiveRun()" id="cardCancelAction" class="p-4 rounded-2xl bg-panel/90 hover:bg-slate-800/90 border border-panelBorder hover:border-red-500/50 text-white text-left transition-all duration-300 transform active:scale-95 group shadow-lg">
           <div class="flex items-center justify-between">
-            <div id="iconCancelBg" class="w-10 sm:w-11 h-10 sm:h-11 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 text-lg">
+            <div id="iconCancelBg" class="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 text-base">
               <i class="fa-solid fa-ban"></i>
             </div>
             <span id="badgeCancelAction" class="text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-slate-700">IDLE</span>
           </div>
           <div class="mt-3">
-            <h3 id="titleCancelAction" class="font-extrabold text-sm sm:text-base text-white group-hover:text-red-400 transition">Cancel Active Run</h3>
-            <p id="descCancelAction" class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">Stops the currently running reel generation on GitHub runner</p>
+            <h3 id="titleCancelAction" class="font-extrabold text-xs sm:text-sm text-white group-hover:text-red-400 transition">Cancel Active Run</h3>
+            <p id="descCancelAction" class="text-[10px] text-slate-400 mt-0.5 leading-relaxed line-clamp-2">Stops active running reel generation on GitHub runner</p>
           </div>
         </button>
 
@@ -601,11 +615,11 @@
         <div class="glass-card rounded-2xl p-5 border border-white/10 hover:border-neonEmerald/40 transition">
           <div class="flex items-center justify-between text-xs font-mono text-neonEmerald mb-2">
             <span>STAGE 01</span>
-            <i class="fa-solid fa-book-bookmark text-base"></i>
+            <i class="fa-solid fa-radar text-base"></i>
           </div>
-          <h4 class="font-extrabold text-sm text-white">Curriculum Selection</h4>
+          <h4 class="font-extrabold text-sm text-white">Trend Intelligence & Curriculum</h4>
           <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
-            Picks the next slot's topic from a 224-item educational syllabus (100 core AI lessons, 70 practical tricks, 25 scam alerts, and 29 fun facts) with slot rotation.
+            Discovers real-time Indian trends via Google Trends RSS, multi-niche feeds (Space, Science, Body, Animals, India History) & official Instagram hashtag search, interleaved with the 224-item core syllabus.
           </p>
         </div>
 

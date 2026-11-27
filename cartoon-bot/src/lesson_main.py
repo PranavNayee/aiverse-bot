@@ -95,11 +95,18 @@ def build_trick_caption(script, title):
                     script.get("hashtags", []) + ["#aitools", "#chatgpttips"], kw="PROMPT")
 
 
+def build_trend_caption(script, title, category="facts"):
+    headline = script.get("headline") or f"🤯 {title}"
+    cat_label = category.title() if category else "Facts"
+    return _caption(headline, f"🔥 Did You Know? · {cat_label} · {title}", script.get("caption_summary", ""), script.get("key_terms", []),
+                    script.get("hashtags", []) + ["#didyouknow", "#facts", "#amazingfacts", "#sciencefacts", "#knowledge"], kw="FACT")
+
+
 def generate_lesson_video(lesson, lesson_num, script):
     """Voice -> one soundtrack -> one single-pass 2D animated render. Returns (video, seconds, cover jpg)."""
     lvl = lesson.get("level")
     label = (f"Lesson {lesson_num}/{syllabus.TOTAL}" if lesson_num else
-             {"trick": "AI Trick", "news": "AI News", "alert": "Saavdhan", "photo": "AI Photo"}.get(lvl, "Fun Fact"))
+             {"trick": "AI Trick", "news": "AI News", "alert": "Saavdhan", "photo": "AI Photo", "trend": "Did You Know?"}.get(lvl, "Did You Know?"))
     import images
     good = None
     for i, sc in enumerate(script["scenes"]):           # make the real AI images for 'image' scenes (free)
@@ -146,8 +153,8 @@ DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
 def content_kind(slot):
-    want = os.environ.get("CONTENT_TYPE", "auto").strip().lower()      # auto | lesson | trick | news | fun_fact
-    if want in ("lesson", "trick", "news", "fun_fact", "alert", "photo"):
+    want = os.environ.get("CONTENT_TYPE", "auto").strip().lower()      # auto | lesson | trick | news | fun_fact | trend
+    if want in ("lesson", "trick", "news", "fun_fact", "alert", "photo", "trend"):
         return want
     plan = C.CONTENT_PLAN if slots.index(slot) == 0 else C.CONTENT_PLAN_PM
     return plan.get(DAYS[slot.weekday()], "lesson").strip()
@@ -157,6 +164,26 @@ def build_content(history, slot):
     """Picks the slot's content from the weekly plan (C.CONTENT_PLAN) for the POSTING day."""
     kind = content_kind(slot)
     base = dict(lesson_num=None, fact_idx=None, trick_idx=None, news_url=None, alert_idx=None)
+    if kind == "trend":
+        log("🔥 TREND INTELLIGENCE: Discovering viral Indian trend topic...")
+        trend_data = None
+        try:
+            import trend_research
+            trend_data = trend_research.discover_and_select_trend(history)
+        except Exception as e:
+            log("Trend intelligence error:", e)
+        if trend_data:
+            cand = trend_data["candidate"]
+            script = trend_data["script"]
+            title = cand.get("title_hinglish") or cand["title"]
+            lesson = {"title": title, "title_en": cand.get("title", title), "level": cand.get("category", "trend")}
+            url = cand.get("source_urls", [""])[0] if cand.get("source_urls") else None
+            log(f"✅ Verified Trend Reel: {title} (Score: {cand.get('score')})")
+            return dict(base, script=script, lesson=lesson, news_url=url, type="trend", level=cand.get("category", "trend"),
+                        keyword="FACT", topic=title,
+                        caption=build_trend_caption(script, title, cand.get("category", "facts")))
+        log("No verified trend today - falling back to AI trick")
+        kind = "trick"
     if kind == "alert":
         log("⚠️ SAAVDHAN alert")
         al = syllabus.get_next_alert(history)
